@@ -156,11 +156,23 @@ export const demoShops: Barbershop[] = [
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const demoUsers: User[] = [
-  // SuperAdmin (Martín y Equipo)
+  // SuperAdmin Principal (Juan Arenas)
+  {
+    id: 'user_superadmin_jl',
+    shopId: 'shop_demo',
+    name: 'Juan Arenas (SuperAdmin)',
+    email: 'jl087521@gmail.com',
+    role: 'superadmin',
+    passwordHash: '1089385741',
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00Z',
+    lastLoginAt: new Date().toISOString(),
+  },
+  // SuperAdmin Alternativo
   {
     id: 'user_superadmin',
     shopId: 'shop_demo',
-    name: 'Martín (Admin SaaS)',
+    name: 'SuperAdmin SaaS',
     email: 'superadmin@chairpro.app',
     role: 'superadmin',
     passwordHash: 'superadmin2024',

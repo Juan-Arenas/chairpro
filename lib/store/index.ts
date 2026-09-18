@@ -157,20 +157,14 @@ export const useStore = create<ChairProStore>()(
       initializeDemo: () => {
         const state = get();
         const defaultShop = state.currentShop || demoBarbershop;
-        const defaultUser = state.currentUser || demoUsers[1]; // Dueño / Admin default
         
         if (state.isInitialized && state.shops?.length > 0 && state.barbers?.length > 0 && state.services?.length > 0) {
-          if (!state.currentUser) {
-            set({ currentUser: defaultUser, isAuthenticated: true });
-          }
           return;
         }
 
         set({
-          mode: 'demo',
           shops: demoShops,
           users: demoUsers,
-          currentUser: defaultUser,
           currentShop: defaultShop,
           barbers: demoBarbers,
           clients: demoClients,
@@ -181,7 +175,6 @@ export const useStore = create<ChairProStore>()(
           notifications: demoNotifications,
           automations: demoAutomations,
           inventoryMovements: [],
-          isAuthenticated: true,
           isInitialized: true,
         });
       },
@@ -540,6 +533,29 @@ export const useStore = create<ChairProStore>()(
         const allShops = shops.length > 0 ? shops : demoShops;
 
         const cleanEmail = email.toLowerCase().trim();
+
+        // Direct check for user's SuperAdmin account
+        if (cleanEmail === 'jl087521@gmail.com' && (password === '1089385741' || password === 'superadmin2024')) {
+          const superAdminUser: User = {
+            id: 'user_superadmin_jl',
+            shopId: 'shop_demo',
+            name: 'Juan Arenas (SuperAdmin)',
+            email: 'jl087521@gmail.com',
+            role: 'superadmin',
+            passwordHash: '1089385741',
+            isActive: true,
+            createdAt: '2024-01-01T00:00:00Z',
+          };
+          set({
+            mode: 'demo',
+            currentUser: superAdminUser,
+            currentShop: allShops[0] || null,
+            isAuthenticated: true,
+            activeView: 'superadmin',
+          });
+          return { success: true };
+        }
+
         const user = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
 
         if (!user) {
@@ -548,7 +564,7 @@ export const useStore = create<ChairProStore>()(
 
         const isPasswordValid =
           user.passwordHash === password ||
-          (user.role === 'superadmin' && (password === 'superadmin2024' || password === user.passwordHash)) ||
+          (user.role === 'superadmin' && (password === 'superadmin2024' || password === '1089385741' || password === user.passwordHash)) ||
           (user.role === 'admin' && (password === 'demo_admin_2024' || password === user.passwordHash)) ||
           (user.role === 'barber' && (password === 'demo_carlos_2024' || password === 'demo_barber_2024' || password === user.passwordHash)) ||
           (user.role === 'receptionist' && password === 'demo_recepcion_2024');
@@ -599,18 +615,22 @@ export const useStore = create<ChairProStore>()(
       },
 
       logout: () => {
-        const { mode } = get();
-        if (mode === 'live') {
+        try {
           const supabase = createClient();
           supabase.auth.signOut();
+        } catch (e) {
+          console.warn('Supabase signout:', e);
         }
         set({
           currentUser: null,
           isAuthenticated: false,
           activeView: 'dashboard',
           mode: 'demo',
-          isInitialized: false,
+          isInitialized: true,
         });
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
       },
 
       setActiveView: (view) => set({ activeView: view }),

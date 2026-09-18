@@ -39,30 +39,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fast check: If mounted and definitively not authenticated (and initialized), redirect to login
+  // Check authentication on mount and state changes
   useEffect(() => {
-    if (mounted && isInitialized && !isAuthenticated) {
-      router.push('/login');
+    if (mounted && !isAuthenticated) {
+      router.replace('/login');
     }
-  }, [mounted, isInitialized, isAuthenticated, router]);
+  }, [mounted, isAuthenticated, router]);
 
-  if (!mounted) {
+  if (!mounted || !isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-white p-4">
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm animate-fade-in">
+          <div className="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-600/30">
+            <span className="text-lg">✂️</span>
           </div>
-          <p className="text-xs text-zinc-600">Iniciando ChairPro...</p>
+          <div>
+            <h2 className="text-base font-bold text-zinc-100 mb-1">Acceso a ChairPro</h2>
+            <p className="text-xs text-zinc-400 mb-4">Redirigiendo a la pantalla de inicio de sesión...</p>
+          </div>
+          <a
+            href="/login"
+            className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-all shadow-md"
+          >
+            Iniciar Sesión ➔
+          </a>
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Redirecting via useEffect
   }
 
   return (
