@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { useSupabaseRealtime } from '@/lib/supabase/realtime';
+import { fetchShopBySlug, fetchTenantData } from '@/lib/supabase/queries';
+import { demoBarbershop, demoServices, demoBarbers } from '@/lib/demo-data';
 import { formatCurrency, getInitials, formatTime } from '@/lib/utils';
 import { format, addDays, isToday, isTomorrow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -13,17 +15,18 @@ import {
   Search, AlertCircle, Sparkles, ShieldCheck
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import type { Barbershop, Barber, Service } from '@/types';
 
 const QRCodeCanvas = dynamic(() => import('qrcode.react').then(m => m.QRCodeCanvas), { ssr: false });
 
 export default function ClientBookingPage() {
   const params = useParams();
-  const rawShopId = params?.shopId as string;
+  const rawShopId = (params?.shopId as string) || 'the-black-chair';
 
   const {
     shops,
-    barbers,
-    services,
+    barbers: storeBarbers,
+    services: storeServices,
     appointments,
     clients,
     currentShop,
@@ -32,15 +35,40 @@ export default function ClientBookingPage() {
     getAvailableSlots,
   } = useStore();
 
+  const [fetchedShop, setFetchedShop] = useState<Barbershop | null>(null);
+  const [fetchedBarbers, setFetchedBarbers] = useState<Barber[]>([]);
+  const [fetchedServices, setFetchedServices] = useState<Service[]>([]);
+
+  // Fetch shop and services directly from Supabase if not in local store
+  useEffect(() => {
+    async function loadTenant() {
+      try {
+        const found = await fetchShopBySlug(rawShopId);
+        if (found) {
+          setFetchedShop(found);
+          const data = await fetchTenantData(found.id);
+          if (data.barbers?.length) setFetchedBarbers(data.barbers);
+          if (data.services?.length) setFetchedServices(data.services);
+        }
+      } catch (err) {
+        console.warn('Could not fetch tenant live:', err);
+      }
+    }
+    loadTenant();
+  }, [rawShopId]);
+
   // Find the matching barbershop by slug or ID
   const shop = useMemo(() => {
     return (
+      fetchedShop ||
       shops.find((s) => s.slug === rawShopId || s.id === rawShopId) ||
       (currentShop?.slug === rawShopId ? currentShop : null) ||
+      (rawShopId === 'the-black-chair' ? demoBarbershop : null) ||
       shops[0] ||
-      currentShop
+      currentShop ||
+      demoBarbershop
     );
-  }, [shops, rawShopId, currentShop]);
+  }, [fetchedShop, shops, rawShopId, currentShop]);
 
   // Sincronización en vivo con Supabase
   useSupabaseRealtime(shop?.id);
@@ -75,12 +103,16 @@ export default function ClientBookingPage() {
 
   // Filter services and barbers for this shop
   const shopServices = useMemo(() => {
-    return services.filter((s) => s.shopId === shop?.id && s.isActive);
-  }, [services, shop?.id]);
+    if (fetchedServices.length > 0) return fetchedServices.filter(s => s.isActive);
+    const fromStore = storeServices.filter((s) => (s.shopId === shop?.id || s.shopId === 'shop_demo') && s.isActive);
+    return fromStore.length > 0 ? fromStore : demoServices;
+  }, [fetchedServices, storeServices, shop?.id]);
 
   const shopBarbers = useMemo(() => {
-    return barbers.filter((b) => b.shopId === shop?.id && b.isActive);
-  }, [barbers, shop?.id]);
+    if (fetchedBarbers.length > 0) return fetchedBarbers.filter(b => b.isActive);
+    const fromStore = storeBarbers.filter((b) => (b.shopId === shop?.id || b.shopId === 'shop_demo') && b.isActive);
+    return fromStore.length > 0 ? fromStore : demoBarbers;
+  }, [fetchedBarbers, storeBarbers, shop?.id]);
 
   const selectedService = shopServices.find((s) => s.id === selectedServiceId);
   const selectedBarber = shopBarbers.find((b) => b.id === selectedBarberId);
