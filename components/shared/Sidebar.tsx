@@ -1,0 +1,253 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard, CalendarDays, Users, Scissors,
+  BarChart3, Settings, LogOut, QrCode, Zap, MessageSquare,
+  DollarSign, ShoppingBag, Archive, Star, UserX, Award, ChevronLeft,
+  Palette, Building2
+} from 'lucide-react';
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const { currentUser, currentShop, logout, sidebarOpen, toggleSidebar, switchRole } = useStore();
+
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+  const isBarber = currentUser?.role === 'barber';
+
+  // Navigation tailored by Role
+  const navSections = isBarber
+    ? [
+        {
+          title: 'Mi Agenda',
+          items: [
+            { href: '/calendar', label: 'Mi Calendario', icon: CalendarDays },
+            { href: '/appointments', label: 'Mis Citas', icon: Scissors },
+          ],
+        },
+        {
+          title: 'Mi Rendimiento',
+          items: [
+            { href: '/commissions', label: 'Mis Comisiones', icon: Award },
+            { href: '/clients', label: 'Mis Clientes', icon: Users },
+            { href: '/barbers', label: 'Mi Perfil & Horario', icon: Star },
+          ],
+        },
+      ]
+    : [
+        ...(isSuperAdmin ? [{
+          title: 'SaaS Platform',
+          items: [
+            { href: '/superadmin', label: 'Panel SuperAdmin', icon: Building2 },
+          ],
+        }] : []),
+        {
+          title: 'Principal',
+          items: [
+            { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { href: '/calendar', label: 'Calendario', icon: CalendarDays },
+            { href: '/appointments', label: 'Citas', icon: Scissors },
+          ],
+        },
+        {
+          title: 'Gestión',
+          items: [
+            { href: '/barbers', label: 'Barberos', icon: Users },
+            { href: '/clients', label: 'Clientes', icon: Users },
+            { href: '/services', label: 'Servicios', icon: Scissors },
+          ],
+        },
+        {
+          title: 'Negocio',
+          items: [
+            { href: '/products', label: 'Productos', icon: ShoppingBag },
+            { href: '/inventory', label: 'Inventario', icon: Archive },
+            { href: '/finances', label: 'Finanzas', icon: DollarSign },
+            { href: '/commissions', label: 'Comisiones', icon: Award },
+          ],
+        },
+        {
+          title: 'Clientes',
+          items: [
+            { href: '/loyalty', label: 'Fidelización', icon: Star },
+            { href: '/noshow', label: 'No Show', icon: UserX },
+            { href: '/qr', label: 'Códigos QR', icon: QrCode },
+          ],
+        },
+        {
+          title: 'Analytics & IA',
+          items: [
+            { href: '/stats', label: 'Estadísticas', icon: BarChart3 },
+            { href: '/automations', label: 'Automatizaciones', icon: Zap },
+            { href: '/assistant', label: 'Asistente IA', icon: MessageSquare },
+          ],
+        },
+        {
+          title: 'Identidad & Configuración',
+          items: [
+            { href: '/branding', label: 'Personalizar Marca', icon: Palette },
+            { href: '/settings', label: 'Configuración', icon: Settings },
+          ],
+        },
+      ];
+
+  const primaryColor = currentShop?.theme?.primaryColor || '#7c3aed';
+  const logoEmoji = currentShop?.theme?.logoUrl || '✂️';
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+          onClick={toggleSidebar}
+        />
+      )}
+
+      <aside
+        className={cn(
+          'fixed lg:static inset-y-0 left-0 z-40 flex flex-col bg-zinc-900 border-r border-zinc-800 transition-all duration-300 shrink-0',
+          sidebarOpen ? 'w-60 translate-x-0' : 'w-16 -translate-x-full lg:translate-x-0'
+        )}
+      >
+        {/* Logo Header */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-800">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base shadow-lg transition-transform hover:scale-105 overflow-hidden"
+              style={{
+                backgroundColor: primaryColor,
+                boxShadow: `0 0 15px ${primaryColor}55`,
+              }}
+            >
+              {logoEmoji.startsWith('http') || logoEmoji.startsWith('/') || logoEmoji.startsWith('data:image') ? (
+                <img src={logoEmoji} alt={currentShop?.name || 'Logo'} className="w-full h-full object-cover rounded-xl" />
+              ) : logoEmoji.length <= 4 ? (
+                <span>{logoEmoji}</span>
+              ) : (
+                <Scissors className="w-4 h-4 text-white" />
+              )}
+            </div>
+            {sidebarOpen && (
+              <div className="min-w-0">
+                <span className="font-display font-bold text-base text-zinc-100 truncate block">
+                  {currentShop?.name || 'ChairPro'}
+                </span>
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider block font-semibold">
+                  {isSuperAdmin ? 'Panel SaaS' : isBarber ? 'Vista Barbero' : 'Panel Dueño'}
+                </span>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={toggleSidebar}
+            className={cn('btn-icon hidden lg:flex', !sidebarOpen && 'mx-auto')}
+          >
+            <ChevronLeft className={cn('w-4 h-4 transition-transform', !sidebarOpen && 'rotate-180')} />
+          </button>
+        </div>
+
+        {/* Shop Info / Status Tag */}
+        {sidebarOpen && (
+          <div className="px-4 py-2.5 border-b border-zinc-800/80 bg-zinc-950/40 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate">
+              <span className="dot-online w-1.5 h-1.5 shrink-0" />
+              <span className="truncate">{currentShop?.city || 'Colombia'}</span>
+            </div>
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
+              style={{
+                backgroundColor: `${primaryColor}20`,
+                color: primaryColor,
+                border: `1px solid ${primaryColor}40`,
+              }}
+            >
+              {currentShop?.plan || 'pro'}
+            </span>
+          </div>
+        )}
+
+        {/* Barber view switcher notice */}
+        {sidebarOpen && isBarber && (
+          <div className="mx-3 my-2.5 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center">
+            <div className="text-[11px] font-bold text-blue-300 flex items-center justify-center gap-1.5">
+              <span>✂️</span>
+              <span>Vista Barbero ({currentUser?.name?.split(' ')[0]})</span>
+            </div>
+            <p className="text-[10px] text-zinc-400 mt-1 mb-2 leading-tight">Acceso limitado a tu agenda personal</p>
+            <button
+              onClick={() => switchRole('admin')}
+              className="w-full text-[10px] font-bold py-1.5 px-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition-all shadow-sm"
+            >
+              Ver Todas las Opciones (Dueño) 👑
+            </button>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-5 no-scrollbar">
+          {navSections.map((section) => (
+            <div key={section.title}>
+              {sidebarOpen && (
+                <div className="stat-label px-1 mb-1.5 text-[11px] text-zinc-500 font-semibold uppercase tracking-wider">
+                  {section.title}
+                </div>
+              )}
+              <ul className="space-y-0.5">
+                {section.items.map(({ href, label, icon: Icon }) => {
+                  const isActive = pathname === href || (href !== '/dashboard' && href !== '/superadmin' && pathname.startsWith(href));
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        className={cn('nav-item', isActive && 'active', !sidebarOpen && 'justify-center px-2')}
+                        title={!sidebarOpen ? label : undefined}
+                      >
+                        <Icon
+                          className={cn('nav-item-icon', isActive && 'text-brand')}
+                          style={isActive ? { color: primaryColor } : undefined}
+                        />
+                        {sidebarOpen && <span className="truncate">{label}</span>}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+
+        {/* Bottom User Area */}
+        <div className="border-t border-zinc-800 p-3 space-y-1 bg-zinc-950/30">
+          {sidebarOpen && currentUser && (
+            <div className="flex items-center gap-3 px-2 py-2">
+              <div
+                className="avatar w-8 h-8 text-xs font-bold"
+                style={{ backgroundColor: primaryColor }}
+              >
+                {currentUser.name.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-zinc-200 truncate">{currentUser.name}</div>
+                <div className="text-[10px] text-zinc-500 capitalize flex items-center gap-1">
+                  {currentUser.role === 'superadmin' ? '👑 SuperAdmin' : currentUser.role === 'barber' ? '✂️ Barbero' : '💼 Dueño'}
+                </div>
+              </div>
+              <button onClick={logout} className="btn-icon p-1.5 text-zinc-400 hover:text-red-400" title="Cerrar sesión">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          {!sidebarOpen && (
+            <button onClick={logout} className="nav-item justify-center px-2 w-full" title="Cerrar sesión">
+              <LogOut className="nav-item-icon text-zinc-400 hover:text-red-400" />
+            </button>
+          )}
+        </div>
+      </aside>
+    </>
+  );
+}
