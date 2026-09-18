@@ -125,7 +125,7 @@ export default function AutomationsPage() {
       <div className="card p-5 border-dashed border-zinc-700 text-center">
         <Zap className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
         <div className="text-sm text-zinc-500 mb-3">¿Quieres crear una automatización personalizada?</div>
-        <div className="text-xs text-zinc-600">Esta función estará disponible en ChairPro Pro. Las automatizaciones personalizadas permiten crear flujos específicos para tu negocio.</div>
+        <div className="text-xs text-zinc-600">Esta función estará disponible en MartiArenas Labs Pro. Las automatizaciones personalizadas permiten crear flujos específicos para tu negocio.</div>
       </div>
     </div>
   );

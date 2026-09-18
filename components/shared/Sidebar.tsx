@@ -10,6 +10,7 @@ import {
   DollarSign, ShoppingBag, Archive, Star, UserX, Award, ChevronLeft,
   Palette, Building2
 } from 'lucide-react';
+import { ShopLogo } from '@/components/shared/ShopLogo';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -125,27 +126,28 @@ export function Sidebar() {
         {/* Logo Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-zinc-800">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base shadow-lg transition-transform hover:scale-105 overflow-hidden"
-              style={{
-                backgroundColor: primaryColor,
-                boxShadow: `0 0 15px ${primaryColor}55`,
-              }}
-            >
-              {isSuperAdmin ? (
+            {isSuperAdmin ? (
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-base shadow-lg transition-transform hover:scale-105"
+                style={{
+                  backgroundColor: primaryColor,
+                  boxShadow: `0 0 15px ${primaryColor}55`,
+                }}
+              >
                 <span className="text-base">👑</span>
-              ) : logoEmoji.startsWith('http') || logoEmoji.startsWith('/') || logoEmoji.startsWith('data:image') ? (
-                <img src={logoEmoji} alt={currentShop?.name || 'Logo'} className="w-full h-full object-cover rounded-xl" />
-              ) : logoEmoji.length <= 4 ? (
-                <span>{logoEmoji}</span>
-              ) : (
-                <Scissors className="w-4 h-4 text-white" />
-              )}
-            </div>
+              </div>
+            ) : (
+              <ShopLogo
+                logoUrl={currentShop?.theme?.logoUrl}
+                shopName={currentShop?.name || 'MartiArenas Labs'}
+                primaryColor={primaryColor}
+                size="md"
+              />
+            )}
             {sidebarOpen && (
               <div className="min-w-0">
                 <span className="font-display font-bold text-base text-zinc-100 truncate block">
-                  {isSuperAdmin ? 'ChairPro SaaS' : (currentShop?.name || 'ChairPro')}
+                  {isSuperAdmin ? 'MartiArenas Labs' : (currentShop?.name || 'MartiArenas Labs')}
                 </span>
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wider block font-semibold">
                   {isSuperAdmin ? 'SuperAdmin Global' : isBarber ? 'Vista Barbero' : 'Panel Dueño'}

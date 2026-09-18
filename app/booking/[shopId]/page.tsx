@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import type { Barbershop, Barber, Service } from '@/types';
+import { ShopLogo } from '@/components/shared/ShopLogo';
 
 const QRCodeCanvas = dynamic(() => import('qrcode.react').then(m => m.QRCodeCanvas), { ssr: false });
 
@@ -219,7 +220,7 @@ export default function ClientBookingPage() {
         <div className="text-center space-y-3 max-w-sm">
           <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
           <h2 className="text-lg font-bold">Barbería no encontrada</h2>
-          <p className="text-sm text-zinc-400">El enlace no corresponde a ninguna barbería registrada en ChairPro.</p>
+          <p className="text-sm text-zinc-400">El enlace no corresponde a ninguna barbería registrada en MartiArenas Labs.</p>
         </div>
       </div>
     );
@@ -257,18 +258,13 @@ export default function ClientBookingPage() {
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-8 sm:py-12">
         {/* Brand Header */}
         <div className="text-center space-y-3 mb-8">
-          <div
-            className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-3xl shadow-xl transition-transform hover:scale-105 overflow-hidden"
-            style={{
-              backgroundColor: primaryColor,
-              boxShadow: `0 0 25px ${primaryColor}55`,
-            }}
-          >
-            {logoEmoji.startsWith('http') || logoEmoji.startsWith('/') || logoEmoji.startsWith('data:image') ? (
-              <img src={logoEmoji} alt={shop.name} className="w-full h-full object-cover rounded-2xl" />
-            ) : (
-              <span>{logoEmoji}</span>
-            )}
+          <div className="flex justify-center">
+            <ShopLogo
+              logoUrl={shop.theme?.logoUrl}
+              shopName={shop.name}
+              primaryColor={primaryColor}
+              size="xl"
+            />
           </div>
 
           <div>
@@ -798,7 +794,7 @@ export default function ClientBookingPage() {
                     </div>
                     <div className="bg-white p-1.5 rounded-lg shrink-0">
                       <QRCodeCanvas
-                        value={`chairpro://appointment/${confirmedAppt.appt?.id || 'demo'}`}
+                        value={`martiarenas://appointment/${confirmedAppt.appt?.id || 'demo'}`}
                         size={64}
                       />
                     </div>
@@ -944,7 +940,7 @@ export default function ClientBookingPage() {
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
             <span>Reserva segura y directa con {shop.name}</span>
           </div>
-          <div>Tecnología White-Label desarrollada por ChairPro SaaS</div>
+          <div>Tecnología White-Label desarrollada por MartiArenas Labs</div>
         </div>
       </div>
     </div>

@@ -82,7 +82,7 @@ export default function LoginPage() {
               <Scissors className="w-5 h-5 text-white" />
             </div>
             <span className="font-display font-bold text-xl text-zinc-100">
-              Chair<span className="text-violet-400">Pro</span> <span className="text-xs font-mono font-normal text-zinc-500 uppercase tracking-wider">SaaS Multi-Tenant</span>
+              MartiArenas <span className="text-violet-400">Labs</span> <span className="text-xs font-mono font-normal text-zinc-500 uppercase tracking-wider">SaaS Multi-Tenant</span>
             </span>
           </div>
 
@@ -128,7 +128,7 @@ export default function LoginPage() {
           <div className="flex items-center justify-between text-xs text-zinc-500 pt-4 border-t border-zinc-800/60">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>ChairPro SaaS Engine Live</span>
+              <span>MartiArenas Labs SaaS Engine Live</span>
             </div>
             <span>v2.0 Producción</span>
           </div>
@@ -144,7 +144,7 @@ export default function LoginPage() {
               <Scissors className="w-5 h-5 text-white" />
             </div>
             <span className="font-display font-bold text-xl text-zinc-100">
-              Chair<span className="text-violet-400">Pro</span>
+              MartiArenas <span className="text-violet-400">Labs</span>
             </span>
           </div>
 

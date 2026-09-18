@@ -133,7 +133,7 @@ export default function DashboardPage() {
         <div>
           <div className="text-xs text-zinc-600 font-medium uppercase tracking-widest mb-1">{capitalizedToday}</div>
           <h2 className="text-xl font-bold font-display text-zinc-100">
-            {isBarber ? `Tu agenda de hoy, ${currentUser?.name.split(' ')[0]}` : `Resumen operativo — ${currentShop?.name || 'ChairPro'}`}
+            {isBarber ? `Tu agenda de hoy, ${currentUser?.name.split(' ')[0]}` : `Resumen operativo — ${currentShop?.name || 'MartiArenas Labs'}`}
           </h2>
         </div>
         <div className="flex items-center gap-2">

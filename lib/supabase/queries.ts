@@ -379,6 +379,50 @@ export async function updateTenantBranding(shopId: string, branding: Partial<Sho
   return mapTenantToBarbershop(data);
 }
 
+export async function updateTenantSettings(
+  shopId: string,
+  settingsData: {
+    name?: string;
+    slug?: string;
+    address?: string;
+    city?: string;
+    phone?: string;
+    whatsapp?: string;
+    ownerName?: string;
+    ownerEmail?: string;
+    plan?: string;
+    workingHours?: any;
+    settings?: any;
+  }
+) {
+  const supabase = createClient();
+  const updateData: any = {};
+  if (settingsData.name !== undefined) updateData.name = settingsData.name;
+  if (settingsData.slug !== undefined) updateData.slug = settingsData.slug;
+  if (settingsData.address !== undefined) updateData.address = settingsData.address;
+  if (settingsData.city !== undefined) updateData.city = settingsData.city;
+  if (settingsData.phone !== undefined) updateData.phone = settingsData.phone;
+  if (settingsData.whatsapp !== undefined) updateData.whatsapp = settingsData.whatsapp;
+  if (settingsData.ownerName !== undefined) updateData.owner_name = settingsData.ownerName;
+  if (settingsData.ownerEmail !== undefined) updateData.owner_email = settingsData.ownerEmail;
+  if (settingsData.plan !== undefined) updateData.plan = settingsData.plan;
+  if (settingsData.workingHours !== undefined) updateData.working_hours = settingsData.workingHours;
+  if (settingsData.settings !== undefined) updateData.settings = settingsData.settings;
+
+  const { data, error } = await supabase
+    .from('tenants')
+    .update(updateData)
+    .eq('id', shopId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating tenant settings:', error);
+    return null;
+  }
+  return mapTenantToBarbershop(data);
+}
+
 export async function toggleTenantStatus(shopId: string) {
   const supabase = createClient();
   const { data: current } = await supabase

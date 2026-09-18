@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const PAGE_TITLES: Record<string, string> = {
-  '/superadmin': 'Panel SaaS Global (Martín & Equipo)',
+  '/superadmin': 'Panel Global SaaS — MartiArenas Labs',
   '/branding': 'Personalización de Marca & Tema',
   '/dashboard': 'Dashboard',
   '/calendar': 'Calendario de Turnos',
@@ -56,7 +56,7 @@ export function TopBar() {
   const notifsRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = getUnreadCount();
-  const pageTitle = PAGE_TITLES[pathname] || 'ChairPro';
+  const pageTitle = PAGE_TITLES[pathname] || 'MartiArenas Labs';
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isBarber = currentUser?.role === 'barber';
 
@@ -91,7 +91,7 @@ export function TopBar() {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h1 className="text-sm md:text-base font-bold text-zinc-100 truncate">
-            {isSuperAdmin ? 'Panel SaaS Global (Martín & Equipo)' : pageTitle}
+            {isSuperAdmin ? 'Panel Global SaaS — MartiArenas Labs' : pageTitle}
           </h1>
           {isBarber && (
             <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20">

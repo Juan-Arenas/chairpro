@@ -65,6 +65,7 @@ interface ChairProStore {
   switchShop: (shopId: string) => void;
   switchRole: (role: UserRole, barberId?: string) => void;
   updateShopBranding: (shopId: string, branding: Partial<ShopTheme & { name?: string; logoUrl?: string; address?: string; phone?: string }>) => void;
+  updateShopSettings: (shopId: string, settings: Partial<Barbershop>) => Promise<void>;
   createShop: (data: { name: string; slug: string; ownerEmail: string; ownerName: string; city: string; plan?: 'basic' | 'pro' | 'enterprise'; primaryColor?: string }) => Promise<Barbershop | null>;
   toggleShopStatus: (shopId: string) => void;
   recordMonthlyPayment: (data: { tenantId: string; amount: number; paymentMethod: SaasPayment['paymentMethod']; date?: string; billingPeriodStart?: string; billingPeriodEnd?: string; reference?: string; notes?: string; autoExtendDays?: number }) => Promise<SaasPayment | null>;
@@ -390,6 +391,39 @@ export const useStore = create<ChairProStore>()(
         // Persist to Supabase in live mode
         if (get().mode === 'live') {
           db.updateTenantBranding(shopId, branding);
+        }
+      },
+
+      updateShopSettings: async (shopId, settingsData) => {
+        set((state) => {
+          const updatedShops = state.shops.map((shop) => {
+            if (shop.id === shopId || shop.slug === shopId) {
+              return {
+                ...shop,
+                ...settingsData,
+                settings: {
+                  ...shop.settings,
+                  ...(settingsData.settings || {}),
+                },
+                workingHours: {
+                  ...shop.workingHours,
+                  ...(settingsData.workingHours || {}),
+                },
+                theme: {
+                  ...shop.theme,
+                  ...(settingsData.theme || {}),
+                },
+              };
+            }
+            return shop;
+          });
+
+          const currentShop = updatedShops.find((s) => s.id === state.currentShop?.id) || state.currentShop;
+          return { shops: updatedShops, currentShop };
+        });
+
+        if (get().mode === 'live') {
+          await db.updateTenantSettings(shopId, settingsData);
         }
       },
 

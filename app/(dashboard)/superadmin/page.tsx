@@ -17,6 +17,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { format, addDays, subDays } from 'date-fns';
 import type { Barbershop, SaasPayment, SubscriptionStatus } from '@/types';
+import { ShopLogo } from '@/components/shared/ShopLogo';
 
 const QRCodeCanvas = dynamic(() => import('qrcode.react').then(m => m.QRCodeCanvas), { ssr: false });
 
@@ -48,8 +49,8 @@ export default function SuperAdminPage() {
 
   const kpis = getSaaSPlatformKPIs();
 
-  // Active Tab: 'shops' | 'subscriptions' | 'history'
-  const [activeTab, setActiveTab] = useState<'shops' | 'subscriptions' | 'history'>('subscriptions');
+  // Active Tab: 'subscriptions' | 'history' | 'shops'
+  const [activeTab, setActiveTab] = useState<'subscriptions' | 'history' | 'shops'>('subscriptions');
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -235,7 +236,6 @@ export default function SuperAdminPage() {
 
     const currentMonthPrefix = format(new Date(), 'yyyy-MM');
 
-    // Total collected this month from SaaS payments
     (saasPayments || []).forEach((p) => {
       if (p.date && p.date.startsWith(currentMonthPrefix)) {
         collectedThisMonth += Number(p.amount) || 0;
@@ -260,7 +260,7 @@ export default function SuperAdminPage() {
     };
   }, [shops, saasPayments, kpis.totalMRR]);
 
-  // Filtered shops based on search & tab & statusFilter
+  // Filtered shops
   const filteredShops = useMemo(() => {
     let list = shops;
     if (searchQuery.trim()) {
@@ -303,12 +303,10 @@ export default function SuperAdminPage() {
     return list;
   }, [saasPayments, searchQuery, methodFilter]);
 
-  // Handle open Record Payment Modal
+  // Open Record Payment Modal
   const openRecordPaymentModal = (shop: Barbershop) => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     const defaultAmount = shop.mrr || (shop.plan === 'enterprise' ? 249000 : shop.plan === 'basic' ? 129000 : 189000);
-    
-    // Default period: if current nextBillingDate is valid and in future, start from it, otherwise start from today
     const currentNext = shop.nextBillingDate || todayStr;
     const isNextFuture = new Date(currentNext) > new Date(todayStr);
     const startDate = isNextFuture ? currentNext : todayStr;
@@ -350,7 +348,6 @@ export default function SuperAdminPage() {
       showToast(`✅ ¡Pago de ${formatCurrency(paymentModal.amount)} registrado con éxito! Vencimiento extendido al ${paymentModal.billingPeriodEnd}.`);
 
       if (newPayment) {
-        // Open receipt modal right away
         setReceiptModal({
           isOpen: true,
           payment: newPayment,
@@ -384,7 +381,7 @@ export default function SuperAdminPage() {
     const phone = shop.phone ? shop.phone.replace(/[^0-9]/g, '') : '';
     const amountStr = formatCurrency(shop.mrr || (shop.plan === 'enterprise' ? 249000 : shop.plan === 'basic' ? 129000 : 189000));
     
-    let intro = `💈 *Hola, ${ownerName}!* Te saludamos del equipo de *ChairPro SaaS*.`;
+    let intro = `💈 *Hola, ${ownerName}!* Te saludamos del equipo de *MartiArenas Labs*.`;
     let body = '';
 
     if (info.daysRemaining < 0) {
@@ -405,7 +402,7 @@ Valor de tu plan: *${amountStr}* mensual.`;
 💳 *MÉTODOS DE PAGO DISPONIBLES:*
 • *Nequi / Daviplata:* 300 123 4567
 • *Bancolombia Ahorros:* 123-456789-00
-• *Titular:* ChairPro SaaS Colombia
+• *Titular:* MartiArenas Labs Colombia
 
 Una vez realices el pago, envíanos el comprobante por este medio para renovar tu acceso inmediatamente. ¡Gracias por confiar en nosotros! 🚀`;
 
@@ -418,7 +415,7 @@ Una vez realices el pago, envíanos el comprobante por este medio para renovar t
 
   // Generate Receipt WhatsApp Message
   const getReceiptWhatsAppMessage = (payment: SaasPayment, shop: Barbershop) => {
-    return `🧾 *COMPROBANTE DE PAGO OFICIAL — CHAIRPRO SAAS*
+    return `🧾 *COMPROBANTE DE PAGO OFICIAL — MARTIARENAS LABS*
 
 🏢 *Empresa:* ${shop.name}
 👤 *Titular:* ${shop.ownerName || 'Admin'}
@@ -550,7 +547,7 @@ Tu plataforma *${shop.name}* se encuentra 100% activa en la nube hasta el *${pay
 
     const whatsappMessage = `💈 *¡Hola, ${shop.ownerName || shop.name}!*
 
-Aquí tienes los accesos oficiales a tu plataforma *${shop.name}* en ChairPro SaaS:
+Aquí tienes los accesos oficiales a tu plataforma *${shop.name}* en MartiArenas Labs:
 
 🔐 *PANEL ADMINISTRATIVO:*
 • *Enlace:* ${loginUrl}
@@ -606,7 +603,7 @@ Aquí tienes los accesos oficiales a tu plataforma *${shop.name}* en ChairPro Sa
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="badge px-2.5 py-1 text-xs font-bold bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm flex items-center gap-1.5">
-              👑 SuperAdmin SaaS
+              👑 MartiArenas Labs SaaS
             </span>
             <span className="badge px-2 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-300 border-emerald-500/30 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
@@ -822,16 +819,16 @@ Aquí tienes los accesos oficiales a tu plataforma *${shop.name}* en ChairPro Sa
                       {/* Shop Name & Logo */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div
-                            className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 shadow"
+                          <ShopLogo
+                            logoUrl={shop.theme?.logoUrl}
+                            name={shop.name}
+                            className="w-9 h-9"
                             style={{ backgroundColor: primaryHex }}
-                          >
-                            {shop.theme?.logoUrl || '✂️'}
-                          </div>
+                          />
                           <div className="min-w-0">
                             <div className="font-bold text-zinc-100 truncate">{shop.name}</div>
                             <div className="text-[11px] text-zinc-400 flex items-center gap-1 truncate">
-                              <MapPin className="w-3 h-3 text-zinc-500" />
+                              <MapPin className="w-3 h-3 text-zinc-500 shrink-0" />
                               <span>{shop.city} • {shop.ownerName || 'Dueño'}</span>
                             </div>
                           </div>
@@ -874,7 +871,7 @@ Aquí tienes los accesos oficiales a tu plataforma *${shop.name}* en ChairPro Sa
                                 newDate: shop.nextBillingDate || format(addDays(new Date(), 30), 'yyyy-MM-dd'),
                               })
                             }
-                            className="text-zinc-500 hover:text-amber-400 p-1 rounded"
+                            className="text-zinc-500 hover:text-amber-400 p-1 rounded transition-colors"
                             title="Editar fecha de vencimiento manualmente"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
@@ -1067,7 +1064,7 @@ Aquí tienes los accesos oficiales a tu plataforma *${shop.name}* en ChairPro Sa
         </div>
       )}
 
-      {/* TAB 3: EMPRESAS & BARBERÍAS (Original Tenant Cards) */}
+      {/* TAB 3: EMPRESAS & BARBERÍAS */}
       {activeTab === 'shops' && (
         <div className="card p-5 border-zinc-800 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
@@ -1114,12 +1111,12 @@ Aquí tienes los accesos oficiales a tu plataforma *${shop.name}* en ChairPro Sa
                     {/* Header */}
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-md shrink-0"
+                        <ShopLogo
+                          logoUrl={shop.theme?.logoUrl}
+                          name={shop.name}
+                          className="w-10 h-10"
                           style={{ backgroundColor: primaryHex }}
-                        >
-                          {shop.theme?.logoUrl || '✂️'}
-                        </div>
+                        />
                         <div className="min-w-0">
                           <h3 className="text-sm font-bold text-zinc-100 truncate">{shop.name}</h3>
                           <div className="flex items-center gap-1.5 text-xs text-zinc-400">
@@ -1407,7 +1404,7 @@ Aquí tienes los accesos oficiales a tu plataforma *${shop.name}* en ChairPro Sa
             <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 shadow-inner space-y-4 font-sans text-xs">
               {/* Header */}
               <div className="text-center border-b border-zinc-800 pb-3">
-                <div className="text-sm font-bold text-zinc-100 tracking-wider">CHAIRPRO SAAS COLOMBIA</div>
+                <div className="text-sm font-bold text-zinc-100 tracking-wider">MARTIARENAS LABS COLOMBIA</div>
                 <div className="text-[10px] text-zinc-500">Comprobante de Recaudo de Mensualidad</div>
                 <div className="mt-1 badge bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] font-bold">
                   ✓ ESTADO: PAGADO / APROBADO

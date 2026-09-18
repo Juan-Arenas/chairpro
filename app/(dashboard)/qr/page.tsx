@@ -15,7 +15,7 @@ export default function QRPage() {
   const qrRef = useRef<HTMLCanvasElement>(null);
 
   const shopSlug = currentShop?.slug || 'the-black-chair';
-  const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/booking/${shopSlug}` : `https://chairpro.app/booking/${shopSlug}`;
+  const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/booking/${shopSlug}` : `https://saas-barberias.netlify.app/booking/${shopSlug}`;
 
   const getQRValue = () => {
     let url = baseUrl;
@@ -36,7 +36,7 @@ export default function QRPage() {
     const url = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = url;
-    a.download = `chairpro-qr-${qrType}.png`;
+    a.download = `martiarenas-qr-${qrType}.png`;
     a.click();
   };
 

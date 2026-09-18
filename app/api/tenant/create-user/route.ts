@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     const whatsappMessage = `✂️ *¡Hola, ${name}!*
 
-Te han creado una cuenta de acceso para la barbería *${shopName || 'ChairPro'}*:
+Te han creado una cuenta de acceso para la barbería *${shopName || 'MartiArenas Labs'}*:
 
 🔐 *TUS CREDENCIALES DE ACCESO:*
 • *Enlace de Inicio:* ${loginUrl}

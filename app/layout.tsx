@@ -9,10 +9,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'ChairPro — Sistema de Gestión para Barberías',
-  description: 'Plataforma SaaS premium para gestión inteligente de barberías. Agenda, reservas QR, clientes, inventario, finanzas y automatizaciones en un solo lugar.',
-  keywords: 'barbería, gestión, SaaS, citas, agenda, QR, automatización',
-  authors: [{ name: 'ChairPro' }],
+  title: 'MartiArenas Labs — Sistema de Gestión Inteligente para Barberías',
+  description: 'Plataforma SaaS de última generación para gestión de barberías. Agenda en tiempo real, reservas QR, barberos, clientes, finanzas y branding 100% personalizable.',
+  keywords: 'barbería, gestión, SaaS, citas, agenda, QR, automatización, MartiArenas Labs',
+  authors: [{ name: 'MartiArenas Labs' }],
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
   themeColor: '#09090b',
 };

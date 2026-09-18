@@ -9,6 +9,7 @@ import {
   Save, Undo2
 } from 'lucide-react';
 import Link from 'next/link';
+import { ShopLogo } from '@/components/shared/ShopLogo';
 
 const COLOR_PRESETS = [
   { name: 'Violeta Royal', hex: '#7c3aed', desc: 'Moderno & Sofisticado' },
@@ -161,7 +162,7 @@ export default function BrandingStudioPage() {
   );
   const [backgroundImage, setBackgroundImage] = useState(targetShop?.theme?.backgroundImage || '');
   const [backgroundOpacity, setBackgroundOpacity] = useState(
-    targetShop?.theme?.backgroundOpacity ?? 0.15
+    targetShop?.theme?.backgroundOpacity ?? 0.35
   );
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
   const [savedAlert, setSavedAlert] = useState(false);
@@ -822,14 +823,14 @@ export default function BrandingStudioPage() {
                   <div className="flex justify-between text-xs text-zinc-400">
                     <span className="flex items-center gap-1.5">
                       <Sliders className="w-3.5 h-3.5 text-zinc-400" />
-                      Opacidad del fondo (para contraste perfecto del texto)
+                      Opacidad del fondo (intensidad del wallpaper)
                     </span>
                     <span className="font-mono text-zinc-200">{(backgroundOpacity * 100).toFixed(0)}%</span>
                   </div>
                   <input
                     type="range"
-                    min="0.05"
-                    max="0.6"
+                    min="0.10"
+                    max="0.85"
                     step="0.05"
                     value={backgroundOpacity}
                     onChange={(e) => setBackgroundOpacity(parseFloat(e.target.value))}
@@ -905,16 +906,12 @@ export default function BrandingStudioPage() {
                 {/* Mock Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-zinc-800/40">
                   <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-sm shadow-md overflow-hidden"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      {isLogoImage ? (
-                        <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{logoUrl}</span>
-                      )}
-                    </div>
+                    <ShopLogo
+                      logoUrl={logoUrl}
+                      shopName={shopName || 'Mi Barbería'}
+                      primaryColor={primaryColor}
+                      size="sm"
+                    />
                     <div>
                       <div className="text-xs font-bold truncate max-w-[150px]">{shopName || 'Nombre Barbería'}</div>
                       <div className="text-[9px] text-zinc-400 truncate max-w-[150px]">{tagline || 'Eslogan aquí'}</div>
@@ -968,7 +965,7 @@ export default function BrandingStudioPage() {
 
                 {/* Mock Footer */}
                 <div className="text-center pt-2 text-[9px] text-zinc-500">
-                  Impulsado por <strong style={{ color: primaryColor }}>ChairPro SaaS</strong>
+                  Impulsado por <strong style={{ color: primaryColor }}>MartiArenas Labs</strong>
                 </div>
               </div>
             </div>

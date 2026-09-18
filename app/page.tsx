@@ -31,7 +31,7 @@ export default function HomePage() {
           <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
           <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
         </div>
-        <p className="text-xs text-zinc-600">Cargando ChairPro...</p>
+        <p className="text-xs text-zinc-600">Cargando MartiArenas Labs...</p>
       </div>
     </div>
   );

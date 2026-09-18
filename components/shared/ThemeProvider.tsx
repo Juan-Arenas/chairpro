@@ -23,11 +23,12 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { currentShop } = useStore();
-  const theme = currentShop?.theme;
+  const { currentShop, shops } = useStore();
+  const targetShop = currentShop || shops[0];
+  const theme = targetShop?.theme;
 
   // Activar escucha de cambios en tiempo real desde Supabase
-  useSupabaseRealtime(currentShop?.id);
+  useSupabaseRealtime(targetShop?.id);
 
   useEffect(() => {
     if (!theme) return;
@@ -59,14 +60,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   const bgImage = theme?.backgroundImage;
-  const bgType = theme?.backgroundType || 'gradient';
-  const bgOpacity = theme?.backgroundOpacity ?? 0.15;
+  const bgType = theme?.backgroundType || (bgImage ? 'image' : 'gradient');
+  const bgOpacity = theme?.backgroundOpacity ?? 0.35;
   const isLight = theme?.mode === 'light';
 
   return (
-    <>
+    <div className="relative min-h-screen bg-zinc-950 text-zinc-100 overflow-x-hidden">
       {/* Background wallpaper layer if configured */}
-      {bgType === 'image' && bgImage && (
+      {bgImage && (bgType === 'image' || bgType === 'solid' || bgType === 'gradient') && (
         <div
           className="fixed inset-0 pointer-events-none z-0 transition-opacity duration-700 ease-in-out"
           style={{
@@ -75,29 +76,32 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             backgroundPosition: 'center',
             backgroundAttachment: 'fixed',
             opacity: bgOpacity,
-            filter: 'contrast(110%) brightness(90%)',
+            filter: 'contrast(105%) brightness(95%)',
           }}
         />
       )}
 
-      {/* Dynamic ambient color glow */}
-      {bgType === 'gradient' && (
-        <div
-          className="fixed inset-0 pointer-events-none z-0 transition-all duration-700"
-          style={{
-            background: isLight
-              ? `radial-gradient(ellipse at 20% 20%, rgba(var(--brand-primary-rgb), 0.08) 0%, transparent 60%),
-                 radial-gradient(ellipse at 80% 80%, rgba(var(--brand-primary-rgb), 0.05) 0%, transparent 60%)`
-              : `radial-gradient(ellipse at 15% 30%, rgba(var(--brand-primary-rgb), 0.12) 0%, transparent 60%),
-                 radial-gradient(ellipse at 85% 70%, rgba(var(--brand-primary-rgb), 0.08) 0%, transparent 65%)`,
-          }}
-        />
+      {/* Ambient gradient glow layer */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0 transition-all duration-700"
+        style={{
+          background: isLight
+            ? `radial-gradient(ellipse at 20% 20%, rgba(var(--brand-primary-rgb, 124, 58, 237), 0.08) 0%, transparent 60%),
+               radial-gradient(ellipse at 80% 80%, rgba(var(--brand-primary-rgb, 124, 58, 237), 0.05) 0%, transparent 60%)`
+            : `radial-gradient(ellipse at 15% 25%, rgba(var(--brand-primary-rgb, 124, 58, 237), 0.18) 0%, transparent 60%),
+               radial-gradient(ellipse at 85% 75%, rgba(var(--brand-primary-rgb, 124, 58, 237), 0.12) 0%, transparent 65%)`,
+        }}
+      />
+
+      {/* Dark overlay backdrop for crystal clear text readability */}
+      {bgImage && (
+        <div className="fixed inset-0 pointer-events-none z-0 bg-zinc-950/50 backdrop-blur-[1px]" />
       )}
 
       {/* Children content container */}
       <div className="relative z-10 min-h-screen">
         {children}
       </div>
-    </>
+    </div>
   );
 }

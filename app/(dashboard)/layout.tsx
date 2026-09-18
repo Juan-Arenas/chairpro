@@ -54,7 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-lg">✂️</span>
           </div>
           <div>
-            <h2 className="text-base font-bold text-zinc-100 mb-1">Acceso a ChairPro</h2>
+            <h2 className="text-base font-bold text-zinc-100 mb-1">Acceso a MartiArenas Labs</h2>
             <p className="text-xs text-zinc-400 mb-4">Redirigiendo a la pantalla de inicio de sesión...</p>
           </div>
           <a
@@ -70,7 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ThemeProvider>
-      <div className="flex h-screen overflow-hidden bg-zinc-950">
+      <div className="flex h-screen overflow-hidden bg-transparent">
         {/* Sidebar */}
         <Sidebar />
 

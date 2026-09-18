@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const cleanSlug = slug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
     const cleanEmail = ownerEmail.toLowerCase().trim();
-    const tempPassword = ownerPassword?.trim() || `ChairPro_${Math.random().toString(36).slice(-6)}!`;
+    const tempPassword = ownerPassword?.trim() || `MartiArenas_${Math.random().toString(36).slice(-6)}!`;
     const shopId = `shop_${cleanSlug.replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-4)}`;
 
     const mrr = plan === 'enterprise' ? 249000 : plan === 'basic' ? 129000 : 189000;
@@ -214,7 +214,7 @@ export async function POST(req: NextRequest) {
     const loginUrl = `${appUrl}/login`;
     const bookingUrl = `${appUrl}/booking/${cleanSlug}`;
 
-    const whatsappMessage = `💈 *¡Bienvenido a ChairPro SaaS, ${ownerName || name}!*
+    const whatsappMessage = `💈 *¡Bienvenido a MartiArenas Labs, ${ownerName || name}!*
 
 Tu plataforma para *${name}* está 100% activa y lista para operar:
 
