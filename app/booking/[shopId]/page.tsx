@@ -204,8 +204,8 @@ export default function ClientBookingPage() {
       );
       setLookupResults(clientAppts.map((a) => ({
         ...a,
-        service: services.find((s) => s.id === a.serviceId),
-        barber: barbers.find((b) => b.id === a.barberId),
+        service: shopServices.find((s) => s.id === a.serviceId),
+        barber: shopBarbers.find((b) => b.id === a.barberId),
         client: matchedClient,
       })));
     } else {

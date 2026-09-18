@@ -49,33 +49,22 @@ export function TopBar() {
     getUnreadCount,
     currentUser,
     currentShop,
-    shops,
-    switchShop,
-    switchRole,
+    logout,
   } = useStore();
 
   const [showNotifs, setShowNotifs] = useState(false);
-  const [showShopDropdown, setShowShopDropdown] = useState(false);
-  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
-
   const notifsRef = useRef<HTMLDivElement>(null);
-  const shopRef = useRef<HTMLDivElement>(null);
-  const roleRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = getUnreadCount();
   const pageTitle = PAGE_TITLES[pathname] || 'ChairPro';
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+  const isBarber = currentUser?.role === 'barber';
 
   // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (notifsRef.current && !notifsRef.current.contains(e.target as Node)) {
         setShowNotifs(false);
-      }
-      if (shopRef.current && !shopRef.current.contains(e.target as Node)) {
-        setShowShopDropdown(false);
-      }
-      if (roleRef.current && !roleRef.current.contains(e.target as Node)) {
-        setShowRoleDropdown(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -89,7 +78,7 @@ export function TopBar() {
     return 'Buenas noches';
   };
 
-  const primaryColor = currentShop?.theme?.primaryColor || '#7c3aed';
+  const primaryColor = isSuperAdmin ? '#f59e0b' : (currentShop?.theme?.primaryColor || '#7c3aed');
 
   return (
     <header className="h-16 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 flex items-center px-4 gap-3 shrink-0 z-30">
@@ -101,95 +90,31 @@ export function TopBar() {
       {/* Page title & greeting */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h1 className="text-sm md:text-base font-bold text-zinc-100 truncate">{pageTitle}</h1>
-          {currentUser?.role === 'barber' && (
+          <h1 className="text-sm md:text-base font-bold text-zinc-100 truncate">
+            {isSuperAdmin ? 'Panel SaaS Global (Martín & Equipo)' : pageTitle}
+          </h1>
+          {isBarber && (
             <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20">
-              Vista Barbero Protegida
+              ✂️ Barbero
             </span>
           )}
-          {currentUser?.role === 'superadmin' && (
-            <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20">
-              👑 Modo SuperAdmin
+          {isSuperAdmin && (
+            <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              👑 SuperAdmin
             </span>
           )}
         </div>
-        {pathname === '/dashboard' && currentUser && (
+        {pathname === '/dashboard' && currentUser && !isSuperAdmin && (
           <p className="text-xs text-zinc-500">
             {getHour()}, <span className="text-zinc-300 font-medium">{currentUser.name}</span>
           </p>
         )}
       </div>
 
-      {/* Center/Right Actions: Tenant Selector, Role Switcher, Client Portal, Notifications */}
-      <div className="flex items-center gap-2">
-        {/* Company/Shop Switcher - Restricted: Only SuperAdmin can view and switch between all shops */}
-        {currentUser?.role === 'superadmin' ? (
-          <div className="relative" ref={shopRef}>
-            <button
-              onClick={() => setShowShopDropdown(!showShopDropdown)}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/10 text-xs font-medium text-amber-200 transition-all"
-              title="Panel SuperAdmin: Cambiar barbería activa"
-            >
-              <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: primaryColor }}
-              />
-              <span className="max-w-[110px] md:max-w-[150px] truncate font-semibold">
-                {currentShop?.name || 'Seleccionar Empresa'}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            </button>
-
-            {showShopDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-64 card p-1.5 shadow-modal z-50 animate-scale-in">
-                <div className="px-3 py-2 text-[11px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 flex items-center justify-between">
-                  <span>Todas las Barberías</span>
-                  <span className="badge-violet text-[10px]">{shops.length} activas</span>
-                </div>
-                <div className="py-1 max-h-60 overflow-y-auto space-y-0.5">
-                  {shops.map((shop) => (
-                    <button
-                      key={shop.id}
-                      onClick={() => {
-                        switchShop(shop.id);
-                        setShowShopDropdown(false);
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-xs transition-colors',
-                        currentShop?.id === shop.id
-                          ? 'bg-violet-600/15 text-zinc-100 font-semibold'
-                          : 'hover:bg-zinc-800 text-zinc-300'
-                      )}
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: shop.theme?.primaryColor || '#7c3aed' }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="truncate font-medium">{shop.name}</div>
-                        <div className="text-[10px] text-zinc-500 truncate">{shop.city}</div>
-                      </div>
-                      {currentShop?.id === shop.id && (
-                        <Check className="w-3.5 h-3.5 text-violet-400 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <div className="pt-1.5 mt-1 border-t border-zinc-800">
-                  <Link
-                    href="/superadmin"
-                    onClick={() => setShowShopDropdown(false)}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-violet-400 hover:text-violet-300 font-medium hover:bg-violet-600/10 rounded-md transition-colors"
-                  >
-                    <Building2 className="w-3.5 h-3.5" />
-                    Gestionar todas las empresas
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Non-superadmin view (Shop owner / Barber): strictly lock to their own shop, no dropdown */
+      {/* Center/Right Actions */}
+      <div className="flex items-center gap-2.5">
+        {/* Shop Badge (Only for Shop Owners / Employees) */}
+        {!isSuperAdmin ? (
           <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 text-xs font-medium text-zinc-200">
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -199,102 +124,29 @@ export function TopBar() {
               {currentShop?.name || 'Mi Barbería'}
             </span>
           </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs font-bold text-amber-300">
+            <Building2 className="w-3.5 h-3.5" />
+            <span>Control Multi-Tenant</span>
+          </div>
         )}
 
-
-        {/* Role Fast Switcher (for testing and demoing) */}
-        <div className="relative" ref={roleRef}>
-          <button
-            onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:border-zinc-700 bg-zinc-800/40 text-xs font-medium text-zinc-300 transition-all"
-            title="Cambiar rol para probar permisos"
+        {/* Live Client Booking Portal Link (Only for Shop Owners / Admins) */}
+        {!isSuperAdmin && (
+          <Link
+            href={`/booking/${currentShop?.slug || 'the-black-chair'}`}
+            target="_blank"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all shadow-sm hover:scale-[1.02]"
+            style={{
+              backgroundColor: primaryColor,
+              boxShadow: `0 0 12px ${primaryColor}40`,
+            }}
+            title="Ver cómo lo ve el cliente"
           >
-            <UserCircle2 className="w-3.5 h-3.5 text-zinc-400" />
-            <span className="hidden sm:inline capitalize font-semibold">
-              {currentUser?.role === 'superadmin'
-                ? 'SuperAdmin'
-                : currentUser?.role === 'barber'
-                ? 'Barbero'
-                : 'Dueño'}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-          </button>
-
-          {showRoleDropdown && (
-            <div className="absolute right-0 top-full mt-2 w-56 card p-1.5 shadow-modal z-50 animate-scale-in">
-              <div className="px-3 py-2 text-[11px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-800">
-                Probar como:
-              </div>
-              <div className="py-1 space-y-0.5">
-                <button
-                  onClick={() => {
-                    switchRole('superadmin');
-                    setShowRoleDropdown(false);
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors',
-                    currentUser?.role === 'superadmin' ? 'bg-amber-500/15 text-amber-300 font-semibold' : 'hover:bg-zinc-800 text-zinc-300'
-                  )}
-                >
-                  <span className="text-sm">👑</span>
-                  <div>
-                    <div>SuperAdmin (Martín)</div>
-                    <div className="text-[10px] text-zinc-500">Métricas SaaS globales</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    switchRole('admin');
-                    setShowRoleDropdown(false);
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors',
-                    currentUser?.role === 'admin' ? 'bg-violet-500/15 text-violet-300 font-semibold' : 'hover:bg-zinc-800 text-zinc-300'
-                  )}
-                >
-                  <span className="text-sm">💼</span>
-                  <div>
-                    <div>Dueño / Administrador</div>
-                    <div className="text-[10px] text-zinc-500">Finanzas, branding y control</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    switchRole('barber');
-                    setShowRoleDropdown(false);
-                  }}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors',
-                    currentUser?.role === 'barber' ? 'bg-blue-500/15 text-blue-300 font-semibold' : 'hover:bg-zinc-800 text-zinc-300'
-                  )}
-                >
-                  <span className="text-sm">✂️</span>
-                  <div>
-                    <div>Barbero / Empleado</div>
-                    <div className="text-[10px] text-zinc-500">Solo su agenda y comisiones</div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Live Client Booking Portal Link */}
-        <Link
-          href={`/booking/${currentShop?.slug || 'the-black-chair'}`}
-          target="_blank"
-          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all shadow-sm hover:scale-[1.02]"
-          style={{
-            backgroundColor: primaryColor,
-            boxShadow: `0 0 12px ${primaryColor}40`,
-          }}
-          title="Ver cómo lo ve el cliente"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          <span>Ver Portal Cliente</span>
-        </Link>
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span>Ver Portal Cliente</span>
+          </Link>
+        )}
 
         {/* Notifications */}
         <div className="relative" ref={notifsRef}>

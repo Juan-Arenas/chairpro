@@ -534,45 +534,42 @@ export const useStore = create<ChairProStore>()(
 
       // ── Auth ──────────────────────────────────────────────────
       login: async (email, password) => {
-        // Demo mode login
         get().initializeDemo();
         const { users, shops } = get();
         const allUsers = users.length > 0 ? users : demoUsers;
         const allShops = shops.length > 0 ? shops : demoShops;
 
         const cleanEmail = email.toLowerCase().trim();
-        let user = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
+        const user = allUsers.find((u) => u.email.toLowerCase() === cleanEmail);
 
         if (!user) {
-          if (cleanEmail.includes('superadmin')) {
-            user = allUsers.find((u) => u.role === 'superadmin') || demoUsers[0];
-          } else if (cleanEmail.includes('carlos')) {
-            user = allUsers.find((u) => u.email.includes('carlos')) || demoUsers[2];
-          } else if (cleanEmail.includes('fademaster')) {
-            user = allUsers.find((u) => u.email.includes('fademaster')) || demoUsers[3];
-          } else if (cleanEmail.includes('laclasica')) {
-            user = allUsers.find((u) => u.email.includes('laclasica')) || demoUsers[4];
-          } else {
-            user = allUsers.find((u) => u.role === 'admin') || demoUsers[1];
-          }
+          return { success: false, error: 'Usuario no encontrado con este correo electrónico.' };
         }
 
-        if (user) {
-          let matchingShop = allShops.find((s) => s.id === user.shopId);
-          if (!matchingShop && allShops.length > 0) {
-            matchingShop = allShops[0];
-          }
+        const isPasswordValid =
+          user.passwordHash === password ||
+          (user.role === 'superadmin' && (password === 'superadmin2024' || password === user.passwordHash)) ||
+          (user.role === 'admin' && (password === 'demo_admin_2024' || password === user.passwordHash)) ||
+          (user.role === 'barber' && (password === 'demo_carlos_2024' || password === 'demo_barber_2024' || password === user.passwordHash)) ||
+          (user.role === 'receptionist' && password === 'demo_recepcion_2024');
 
-          set({
-            mode: 'demo',
-            currentUser: user,
-            currentShop: matchingShop || allShops[0] || null,
-            isAuthenticated: true,
-            activeView: user.role === 'superadmin' ? 'superadmin' : 'dashboard',
-          });
-          return { success: true };
+        if (!isPasswordValid) {
+          return { success: false, error: 'Contraseña incorrecta. Por favor verifica tus datos.' };
         }
-        return { success: false, error: 'Credenciales incorrectas' };
+
+        let matchingShop = allShops.find((s) => s.id === user.shopId);
+        if (!matchingShop && allShops.length > 0) {
+          matchingShop = allShops[0];
+        }
+
+        set({
+          mode: 'demo',
+          currentUser: user,
+          currentShop: matchingShop || allShops[0] || null,
+          isAuthenticated: true,
+          activeView: user.role === 'superadmin' ? 'superadmin' : 'dashboard',
+        });
+        return { success: true };
       },
 
       loginWithSupabase: async (email, password) => {

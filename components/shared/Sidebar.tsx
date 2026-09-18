@@ -13,13 +13,22 @@ import {
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { currentUser, currentShop, logout, sidebarOpen, toggleSidebar, switchRole } = useStore();
+  const { currentUser, currentShop, logout, sidebarOpen, toggleSidebar } = useStore();
 
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isBarber = currentUser?.role === 'barber';
 
-  // Navigation tailored by Role
-  const navSections = isBarber
+  // Navigation tailored by Role: SuperAdmin ONLY gets SaaS platform management
+  const navSections = isSuperAdmin
+    ? [
+        {
+          title: 'Plataforma SaaS',
+          items: [
+            { href: '/superadmin', label: 'Barberías & Negocios', icon: Building2 },
+          ],
+        },
+      ]
+    : isBarber
     ? [
         {
           title: 'Mi Agenda',
@@ -38,12 +47,6 @@ export function Sidebar() {
         },
       ]
     : [
-        ...(isSuperAdmin ? [{
-          title: 'SaaS Platform',
-          items: [
-            { href: '/superadmin', label: 'Panel SuperAdmin', icon: Building2 },
-          ],
-        }] : []),
         {
           title: 'Principal',
           items: [
@@ -94,8 +97,8 @@ export function Sidebar() {
         },
       ];
 
-  const primaryColor = currentShop?.theme?.primaryColor || '#7c3aed';
-  const logoEmoji = currentShop?.theme?.logoUrl || '✂️';
+  const primaryColor = isSuperAdmin ? '#f59e0b' : (currentShop?.theme?.primaryColor || '#7c3aed');
+  const logoEmoji = isSuperAdmin ? '👑' : (currentShop?.theme?.logoUrl || '✂️');
 
   return (
     <>
@@ -123,7 +126,9 @@ export function Sidebar() {
                 boxShadow: `0 0 15px ${primaryColor}55`,
               }}
             >
-              {logoEmoji.startsWith('http') || logoEmoji.startsWith('/') || logoEmoji.startsWith('data:image') ? (
+              {isSuperAdmin ? (
+                <span className="text-base">👑</span>
+              ) : logoEmoji.startsWith('http') || logoEmoji.startsWith('/') || logoEmoji.startsWith('data:image') ? (
                 <img src={logoEmoji} alt={currentShop?.name || 'Logo'} className="w-full h-full object-cover rounded-xl" />
               ) : logoEmoji.length <= 4 ? (
                 <span>{logoEmoji}</span>
@@ -134,10 +139,10 @@ export function Sidebar() {
             {sidebarOpen && (
               <div className="min-w-0">
                 <span className="font-display font-bold text-base text-zinc-100 truncate block">
-                  {currentShop?.name || 'ChairPro'}
+                  {isSuperAdmin ? 'ChairPro SaaS' : (currentShop?.name || 'ChairPro')}
                 </span>
                 <span className="text-[10px] text-zinc-500 uppercase tracking-wider block font-semibold">
-                  {isSuperAdmin ? 'Panel SaaS' : isBarber ? 'Vista Barbero' : 'Panel Dueño'}
+                  {isSuperAdmin ? 'SuperAdmin Global' : isBarber ? 'Vista Barbero' : 'Panel Dueño'}
                 </span>
               </div>
             )}
@@ -155,7 +160,7 @@ export function Sidebar() {
           <div className="px-4 py-2.5 border-b border-zinc-800/80 bg-zinc-950/40 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate">
               <span className="dot-online w-1.5 h-1.5 shrink-0" />
-              <span className="truncate">{currentShop?.city || 'Colombia'}</span>
+              <span className="truncate">{isSuperAdmin ? 'Control Global' : (currentShop?.city || 'Colombia')}</span>
             </div>
             <span
               className="text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize"
@@ -165,25 +170,19 @@ export function Sidebar() {
                 border: `1px solid ${primaryColor}40`,
               }}
             >
-              {currentShop?.plan || 'pro'}
+              {isSuperAdmin ? 'SuperAdmin' : (currentShop?.plan || 'pro')}
             </span>
           </div>
         )}
 
-        {/* Barber view switcher notice */}
+        {/* Barber view indicator banner */}
         {sidebarOpen && isBarber && (
           <div className="mx-3 my-2.5 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center">
             <div className="text-[11px] font-bold text-blue-300 flex items-center justify-center gap-1.5">
               <span>✂️</span>
               <span>Vista Barbero ({currentUser?.name?.split(' ')[0]})</span>
             </div>
-            <p className="text-[10px] text-zinc-400 mt-1 mb-2 leading-tight">Acceso limitado a tu agenda personal</p>
-            <button
-              onClick={() => switchRole('admin')}
-              className="w-full text-[10px] font-bold py-1.5 px-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition-all shadow-sm"
-            >
-              Ver Todas las Opciones (Dueño) 👑
-            </button>
+            <p className="text-[10px] text-zinc-400 mt-0.5 leading-tight">Acceso protegido a tu agenda y comisiones</p>
           </div>
         )}
 
@@ -225,7 +224,7 @@ export function Sidebar() {
           {sidebarOpen && currentUser && (
             <div className="flex items-center gap-3 px-2 py-2">
               <div
-                className="avatar w-8 h-8 text-xs font-bold"
+                className="avatar w-8 h-8 text-xs font-bold shrink-0"
                 style={{ backgroundColor: primaryColor }}
               >
                 {currentUser.name.slice(0, 2).toUpperCase()}
@@ -236,7 +235,7 @@ export function Sidebar() {
                   {currentUser.role === 'superadmin' ? '👑 SuperAdmin' : currentUser.role === 'barber' ? '✂️ Barbero' : '💼 Dueño'}
                 </div>
               </div>
-              <button onClick={logout} className="btn-icon p-1.5 text-zinc-400 hover:text-red-400" title="Cerrar sesión">
+              <button onClick={logout} className="btn-icon p-1.5 text-zinc-400 hover:text-red-400 shrink-0" title="Cerrar sesión">
                 <LogOut className="w-4 h-4" />
               </button>
             </div>

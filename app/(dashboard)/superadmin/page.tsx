@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '@/lib/store';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -22,6 +22,7 @@ export default function SuperAdminPage() {
     users,
     appointments,
     barbers,
+    currentUser,
     currentShop,
     switchShop,
     toggleShopStatus,
@@ -30,6 +31,14 @@ export default function SuperAdminPage() {
   } = useStore();
 
   const router = useRouter();
+
+  // Role Protection: only SuperAdmin can view this page
+  useEffect(() => {
+    if (currentUser && currentUser.role !== 'superadmin') {
+      router.replace('/dashboard');
+    }
+  }, [currentUser, router]);
+
   const kpis = getSaaSPlatformKPIs();
 
   const [searchQuery, setSearchQuery] = useState('');

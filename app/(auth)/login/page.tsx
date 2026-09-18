@@ -1,179 +1,69 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import {
   Scissors, Eye, EyeOff, ChevronRight, Shield, Zap, BarChart3,
-  ToggleLeft, ToggleRight, Sparkles, Activity, CheckCircle2,
-  Building2, Lock, ArrowRight, ExternalLink
+  Sparkles, Lock, Mail, ArrowRight, ExternalLink
 } from 'lucide-react';
 
-const DEMO_ACCOUNTS = [
-  {
-    company: 'The Black Chair (Bogotá)',
-    email: 'admin@theblackchair.co',
-    password: 'demo_admin_2024',
-    role: 'Dueño / Administrador (Acceso Total)',
-    desc: 'Control de las 18 secciones: Agenda, Clientes, Finanzas, etc.',
-    badge: '💼 Dueño Completo',
-    color: '#7c3aed',
-  },
-  {
-    company: 'Plataforma SaaS',
-    email: 'superadmin@chairpro.app',
-    password: 'superadmin2024',
-    role: 'SuperAdmin (Martín & Equipo)',
-    desc: 'Gestión global de todas las barberías, sedes y MRR',
-    badge: '👑 Global SaaS',
-    color: '#f59e0b',
-  },
-  {
-    company: 'The Black Chair (Bogotá)',
-    email: 'carlos@theblackchair.co',
-    password: 'demo_carlos_2024',
-    role: 'Barbero (Carlos) [Vista Restringida]',
-    desc: 'Solo su agenda personal y comisiones (sin finanzas de negocio)',
-    badge: '✂️ Barbero',
-    color: '#3b82f6',
-  },
-  {
-    company: 'Fade Master Studio (Medellín)',
-    email: 'admin@fademaster.co',
-    password: 'demo_admin_2024',
-    role: 'Dueño (Fade Master)',
-    desc: 'Tema Azul Neón · Vista independiente',
-    badge: '💈 Medellín',
-    color: '#0ea5e9',
-  },
-  {
-    company: 'La Clásica Barber Club (Cali)',
-    email: 'admin@laclasica.co',
-    password: 'demo_admin_2024',
-    role: 'Dueño (La Clásica)',
-    desc: 'Tema Verde Esmeralda · Vista independiente',
-    badge: '👑 Cali',
-    color: '#10b981',
-  },
-];
-
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@theblackchair.co');
-  const [password, setPassword] = useState('demo_admin_2024');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isDemoMode, setIsDemoMode] = useState(false); // Default to live
-  const [supabaseHealth, setSupabaseHealth] = useState<{
-    checked: boolean;
-    connected: boolean;
-    latencyMs?: number;
-  }>({ checked: false, connected: false });
 
   const { login, loginWithSupabase, initializeDemo } = useStore();
   const router = useRouter();
 
-  // Test Supabase Live connection on mount
-  useEffect(() => {
-    fetch('/api/health/supabase')
-      .then((res) => res.json())
-      .then((data) => {
-        setSupabaseHealth({
-          checked: true,
-          connected: data.connected,
-          latencyMs: data.latencyMs,
-        });
-      })
-      .catch(() => {
-        setSupabaseHealth({ checked: true, connected: false });
-      });
-  }, []);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    if (isDemoMode) {
-      // Demo mode
-      initializeDemo();
-      const result = await login(email, password);
-      if (result.success) {
-        if (email.toLowerCase().includes('superadmin')) {
-          router.push('/superadmin');
-        } else {
-          router.push('/dashboard');
-        }
-      } else {
-        setError(result.error || 'Error al iniciar sesión');
-        setIsLoading(false);
-      }
-    } else {
-      // Live Supabase Auth mode
-      const result = await loginWithSupabase(email, password);
-      if (result.success) {
-        const store = useStore.getState();
-        if (store.currentUser?.role === 'superadmin') {
-          router.push('/superadmin');
-        } else {
-          router.push('/dashboard');
-        }
-      } else {
-        // If Supabase live fails with demo credentials, gracefully notify and offer demo mode
-        if (email.includes('@theblackchair.co') || email.includes('@fademaster.co') || email.includes('@chairpro.app')) {
-          setError(`${result.error}. (Tip: Si aún no has ejecutado el script en Supabase, pulsa 'Modo Demo' arriba para probar inmediatamente).`);
-        } else {
-          setError(result.error || 'Credenciales incorrectas en Supabase');
-        }
-        setIsLoading(false);
-      }
+    if (!email.trim() || !password.trim()) {
+      setError('Por favor ingresa tu correo y contraseña.');
+      return;
     }
-  };
 
-  const quickLogin = async (account: typeof DEMO_ACCOUNTS[0]) => {
-    setEmail(account.email);
-    setPassword(account.password);
     setIsLoading(true);
     setError('');
 
-    if (isDemoMode) {
-      initializeDemo();
-      const result = await login(account.email, account.password);
-      if (result.success) {
-        if (account.email.toLowerCase().includes('superadmin')) {
-          router.push('/superadmin');
-        } else {
-          router.push('/dashboard');
-        }
-      } else {
-        setError('Error al iniciar sesión en demo');
-        setIsLoading(false);
-      }
-    } else {
-      // Try live first, fallback to demo if not seeded in Supabase Auth yet
-      const result = await loginWithSupabase(account.email, account.password);
-      if (result.success) {
+    try {
+      // 1. Try Supabase Auth first (Live mode)
+      const liveRes = await loginWithSupabase(email.trim(), password);
+      if (liveRes.success) {
         const store = useStore.getState();
         if (store.currentUser?.role === 'superadmin') {
           router.push('/superadmin');
+        } else if (store.currentUser?.role === 'barber') {
+          router.push('/calendar');
         } else {
           router.push('/dashboard');
         }
-      } else {
-        // Fallback into demo mode seamlessly for smooth sales demo
-        initializeDemo();
-        const demoRes = await login(account.email, account.password);
-        if (demoRes.success) {
-          if (account.email.toLowerCase().includes('superadmin')) {
-            router.push('/superadmin');
-          } else {
-            router.push('/dashboard');
-          }
-        } else {
-          setError('Error al iniciar sesión');
-          setIsLoading(false);
-        }
+        return;
       }
+
+      // 2. Fallback to local / demo credentials validation
+      initializeDemo();
+      const localRes = await login(email.trim(), password);
+      if (localRes.success) {
+        const store = useStore.getState();
+        if (store.currentUser?.role === 'superadmin') {
+          router.push('/superadmin');
+        } else if (store.currentUser?.role === 'barber') {
+          router.push('/calendar');
+        } else {
+          router.push('/dashboard');
+        }
+        return;
+      }
+
+      // If both fail, show clear error
+      setError('Correo electrónico o contraseña incorrectos. Por favor verifica tus credenciales.');
+      setIsLoading(false);
+    } catch (err: any) {
+      setError('Error al iniciar sesión. Intenta de nuevo.');
+      setIsLoading(false);
     }
   };
 
@@ -258,65 +148,29 @@ export default function LoginPage() {
             </span>
           </div>
 
-          {/* Connection Status Pill & Mode Toggle */}
-          <div className="flex items-center justify-between gap-2 mb-6 p-2.5 rounded-xl border border-zinc-800 bg-zinc-900/80">
-            <div className="flex items-center gap-2">
-              {supabaseHealth.connected ? (
-                <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Supabase Live ({supabaseHealth.latencyMs}ms)
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5 text-[11px] text-amber-400 font-semibold">
-                  <Activity className="w-3.5 h-3.5" />
-                  {supabaseHealth.checked ? 'Supabase Standby' : 'Comprobando...'}
-                </span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsDemoMode(!isDemoMode);
-                setError('');
-                if (!isDemoMode) {
-                  setEmail('admin@theblackchair.co');
-                  setPassword('demo_admin_2024');
-                }
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${
-                isDemoMode
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-              }`}
-            >
-              {isDemoMode ? <ToggleLeft className="w-4 h-4 text-amber-400" /> : <ToggleRight className="w-4 h-4 text-emerald-400" />}
-              <span>{isDemoMode ? 'Modo Demo' : 'Modo Live'}</span>
-            </button>
-          </div>
-
           <div className="mb-6">
             <h2 className="text-2xl font-bold font-display text-zinc-50 mb-1">Iniciar Sesión</h2>
             <p className="text-zinc-400 text-xs">
-              {isDemoMode
-                ? 'Elige un rol de prueba o ingresa credenciales locales'
-                : 'Acceso seguro multi-tenant con Supabase Auth'}
+              Ingresa tus credenciales de acceso para entrar a tu cuenta.
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="form-group">
               <label className="label" htmlFor="email">Correo electrónico</label>
-              <input
-                id="email"
-                type="email"
-                className="input"
-                placeholder="tu@correo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
+              <div className="relative">
+                <input
+                  id="email"
+                  type="email"
+                  className="input pl-10"
+                  placeholder="tu-correo@barberia.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+                <Mail className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
 
             <div className="form-group">
@@ -325,13 +179,14 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  className="input pr-10"
+                  className="input pl-10 pr-10"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
                 />
+                <Lock className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -367,61 +222,17 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Accounts for effortless pitches */}
-          <div className="mt-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-1 h-px bg-zinc-800" />
-              <span className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider">Accesos Rápidos Demo & Roles</span>
-              <div className="flex-1 h-px bg-zinc-800" />
-            </div>
-
-            <div className="space-y-2">
-              {DEMO_ACCOUNTS.map((account) => (
-                <button
-                  key={account.email}
-                  type="button"
-                  onClick={() => quickLogin(account)}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-between p-2.5 rounded-xl border border-zinc-800/90 hover:border-zinc-700 bg-zinc-900/60 hover:bg-zinc-800/80 transition-all duration-150 group disabled:opacity-50 text-left"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm"
-                      style={{ backgroundColor: account.color }}
-                    >
-                      {account.role[0]}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-zinc-200 group-hover:text-white truncate">
-                          {account.role}
-                        </span>
-                        <span
-                          className="text-[9px] px-1.5 py-0.2 rounded font-semibold shrink-0"
-                          style={{ backgroundColor: `${account.color}20`, color: account.color }}
-                        >
-                          {account.badge}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-zinc-500 truncate">{account.company}</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-300 transition-colors shrink-0 ml-2" />
-                </button>
-              ))}
-            </div>
-
-            {/* Quick link to client portal */}
-            <div className="mt-3 pt-3 border-t border-zinc-800">
-              <a
-                href="/booking/the-black-chair"
-                target="_blank"
-                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold transition-colors"
-              >
-                <span>🌐 Probar Portal Público del Cliente (The Black Chair)</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
+          {/* Client Booking Demo Link */}
+          <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
+            <p className="text-xs text-zinc-500 mb-2.5">¿Eres cliente de una barbería?</p>
+            <a
+              href="/booking/the-black-chair"
+              target="_blank"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/80 text-zinc-300 text-xs font-semibold transition-colors"
+            >
+              <span>🌐 Ir al portal público de reservas</span>
+              <ExternalLink className="w-3.5 h-3.5 text-zinc-500" />
+            </a>
           </div>
 
           <p className="text-center text-[11px] text-zinc-600 mt-6">

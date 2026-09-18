@@ -69,7 +69,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
 export default function DashboardPage() {
+  const router = useRouter();
   const {
     getKPIs,
     appointments,
@@ -81,6 +85,12 @@ export default function DashboardPage() {
     currentUser,
     currentShop,
   } = useStore();
+
+  useEffect(() => {
+    if (currentUser?.role === 'superadmin') {
+      router.replace('/superadmin');
+    }
+  }, [currentUser, router]);
 
   const isBarber = currentUser?.role === 'barber';
   const myBarberId = currentUser?.barberId;
