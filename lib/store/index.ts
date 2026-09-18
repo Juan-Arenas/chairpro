@@ -255,26 +255,26 @@ export const useStore = create<ChairProStore>()(
 
       // ── Tenant & Role Management ──────────────────────────────
       switchShop: (shopId: string) => {
-        const { shops, users, currentUser, mode } = get();
+        const { shops, users, mode } = get();
         const targetShop = shops.find((s) => s.id === shopId) || shops.find((s) => s.slug === shopId);
         if (!targetShop) return;
 
-        let newCurrentUser = currentUser;
-        if (currentUser && currentUser.role !== 'superadmin') {
-          const shopAdmin = users.find((u) => u.shopId === targetShop.id && u.role === 'admin') || {
-            id: `user_admin_${targetShop.id}`,
-            shopId: targetShop.id,
-            name: `${targetShop.ownerName || 'Administrador'}`,
-            email: targetShop.ownerEmail || targetShop.email,
-            role: 'admin' as const,
-            passwordHash: '',
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          };
-          newCurrentUser = shopAdmin;
-        }
+        const shopAdmin = users.find((u) => u.shopId === targetShop.id && u.role === 'admin') || {
+          id: `user_admin_${targetShop.id}`,
+          shopId: targetShop.id,
+          name: `${targetShop.ownerName || 'Administrador Dueño'}`,
+          email: targetShop.ownerEmail || targetShop.email,
+          role: 'admin' as const,
+          passwordHash: '',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        };
 
-        set({ currentShop: targetShop, currentUser: newCurrentUser });
+        set({
+          currentShop: targetShop,
+          currentUser: shopAdmin,
+          activeView: 'dashboard',
+        });
 
         // In live mode, also reload data from Supabase
         if (mode === 'live') {
@@ -283,21 +283,21 @@ export const useStore = create<ChairProStore>()(
       },
 
       switchRole: (role: UserRole, barberId?: string) => {
-        const { currentUser, currentShop, barbers } = get();
-        if (!currentUser && role !== 'superadmin') return;
+        const { currentShop, barbers } = get();
 
         if (role === 'superadmin') {
           set({
             currentUser: {
-              id: 'user_superadmin',
+              id: 'user_superadmin_jl',
               shopId: currentShop?.id || 'shop_demo',
-              name: 'SuperAdmin',
-              email: process.env.NEXT_PUBLIC_SUPERADMIN_EMAIL || 'superadmin@chairpro.app',
+              name: 'Juan Arenas (SuperAdmin)',
+              email: 'jl087521@gmail.com',
               role: 'superadmin',
-              passwordHash: '',
+              passwordHash: '1089385741',
               isActive: true,
               createdAt: '2024-01-01T00:00:00Z',
             },
+            activeView: 'superadmin',
           });
           return;
         }

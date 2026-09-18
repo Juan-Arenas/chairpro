@@ -131,6 +131,19 @@ export function TopBar() {
           </div>
         )}
 
+        {/* Return to SuperAdmin platform button (Available when managing any shop) */}
+        {!isSuperAdmin && (
+          <Link
+            href="/superadmin"
+            onClick={() => useStore.getState().switchRole('superadmin')}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-bold text-amber-300 transition-all shadow-sm"
+            title="Volver a la plataforma global de Barberías"
+          >
+            <Building2 className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Panel SuperAdmin</span>
+          </Link>
+        )}
+
         {/* Live Client Booking Portal Link (Only for Shop Owners / Admins) */}
         {!isSuperAdmin && (
           <Link

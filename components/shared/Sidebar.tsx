@@ -48,6 +48,12 @@ export function Sidebar() {
       ]
     : [
         {
+          title: 'Plataforma Global',
+          items: [
+            { href: '/superadmin', label: '👑 Panel SuperAdmin', icon: Building2 },
+          ],
+        },
+        {
           title: 'Principal',
           items: [
             { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
