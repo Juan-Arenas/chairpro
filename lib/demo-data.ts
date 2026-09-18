@@ -1,6 +1,6 @@
 import type {
   Barbershop, User, Barber, Client, Service, Product,
-  Appointment, Transaction, Notification, Automation
+  Appointment, Transaction, Notification, Automation, SaasPayment
 } from '@/types';
 import { format, subDays, addDays } from 'date-fns';
 
@@ -36,6 +36,9 @@ export const demoBarbershop: Barbershop = {
   },
   status: 'active',
   mrr: 189000,
+  nextBillingDate: format(addDays(new Date(), 24), 'yyyy-MM-dd'),
+  lastPaymentDate: format(subDays(new Date(), 6), 'yyyy-MM-dd'),
+  subscriptionStatus: 'active',
   workingHours: {
     monday: { isOpen: true, open: '09:00', close: '19:00' },
     tuesday: { isOpen: true, open: '09:00', close: '19:00' },
@@ -85,6 +88,9 @@ export const demoShops: Barbershop[] = [
     },
     status: 'active',
     mrr: 249000,
+    nextBillingDate: format(addDays(new Date(), 4), 'yyyy-MM-dd'),
+    lastPaymentDate: format(subDays(new Date(), 26), 'yyyy-MM-dd'),
+    subscriptionStatus: 'expiring_soon',
     workingHours: {
       monday: { isOpen: true, open: '10:00', close: '20:00' },
       tuesday: { isOpen: true, open: '10:00', close: '20:00' },
@@ -131,6 +137,9 @@ export const demoShops: Barbershop[] = [
     },
     status: 'active',
     mrr: 129000,
+    nextBillingDate: format(subDays(new Date(), 3), 'yyyy-MM-dd'),
+    lastPaymentDate: format(subDays(new Date(), 33), 'yyyy-MM-dd'),
+    subscriptionStatus: 'overdue',
     workingHours: {
       monday: { isOpen: false, open: '09:00', close: '18:00' },
       tuesday: { isOpen: true, open: '09:00', close: '19:00' },
@@ -151,6 +160,66 @@ export const demoShops: Barbershop[] = [
     },
     plan: 'basic',
     createdAt: '2024-03-10T00:00:00Z',
+  },
+];
+
+// ── SaaS Monthly Payments (Historial de Cobros) ──────────────────────────────
+export const demoSaasPayments: SaasPayment[] = [
+  {
+    id: 'spay_101',
+    tenantId: 'shop_demo',
+    tenantName: 'The Black Chair',
+    amount: 189000,
+    date: format(subDays(new Date(), 6), 'yyyy-MM-dd'),
+    billingPeriodStart: format(subDays(new Date(), 6), 'yyyy-MM-dd'),
+    billingPeriodEnd: format(addDays(new Date(), 24), 'yyyy-MM-dd'),
+    paymentMethod: 'nequi',
+    reference: 'NEQ-9823145',
+    notes: 'Pago mensualidad puntual Nequi Plan Pro',
+    recordedBy: 'Juan Arenas (SuperAdmin)',
+    createdAt: subDays(new Date(), 6).toISOString(),
+  },
+  {
+    id: 'spay_102',
+    tenantId: 'shop_fade_master',
+    tenantName: 'Fade Master Studio',
+    amount: 249000,
+    date: format(subDays(new Date(), 26), 'yyyy-MM-dd'),
+    billingPeriodStart: format(subDays(new Date(), 26), 'yyyy-MM-dd'),
+    billingPeriodEnd: format(addDays(new Date(), 4), 'yyyy-MM-dd'),
+    paymentMethod: 'transferencia',
+    reference: 'BAN-4409182',
+    notes: 'Transferencia Bancolombia Plan Enterprise',
+    recordedBy: 'Juan Arenas (SuperAdmin)',
+    createdAt: subDays(new Date(), 26).toISOString(),
+  },
+  {
+    id: 'spay_103',
+    tenantId: 'shop_la_clasica',
+    tenantName: 'La Clásica Barber Club',
+    amount: 129000,
+    date: format(subDays(new Date(), 33), 'yyyy-MM-dd'),
+    billingPeriodStart: format(subDays(new Date(), 33), 'yyyy-MM-dd'),
+    billingPeriodEnd: format(subDays(new Date(), 3), 'yyyy-MM-dd'),
+    paymentMethod: 'daviplata',
+    reference: 'DAV-8821903',
+    notes: 'Pago Plan Básico Daviplata',
+    recordedBy: 'Juan Arenas (SuperAdmin)',
+    createdAt: subDays(new Date(), 33).toISOString(),
+  },
+  {
+    id: 'spay_100',
+    tenantId: 'shop_demo',
+    tenantName: 'The Black Chair',
+    amount: 189000,
+    date: format(subDays(new Date(), 36), 'yyyy-MM-dd'),
+    billingPeriodStart: format(subDays(new Date(), 36), 'yyyy-MM-dd'),
+    billingPeriodEnd: format(subDays(new Date(), 6), 'yyyy-MM-dd'),
+    paymentMethod: 'efectivo',
+    reference: 'EF-00129',
+    notes: 'Pago en efectivo acordado en sede Bogotá',
+    recordedBy: 'Juan Arenas (SuperAdmin)',
+    createdAt: subDays(new Date(), 36).toISOString(),
   },
 ];
 

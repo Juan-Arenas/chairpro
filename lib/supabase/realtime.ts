@@ -1,16 +1,14 @@
-'use client';
-
 import { useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useStore } from '@/lib/store';
-import type { Barbershop, Appointment, Notification } from '@/types';
+import type { Barbershop, Appointment, Notification, SaasPayment } from '@/types';
 
 /**
  * Hook para escuchar cambios en Supabase Realtime y sincronizar
- * el store de Zustand automáticamente.
+ * el store de Zustand automáticamente en tiempo real.
  */
 export function useSupabaseRealtime(shopId?: string) {
-  const { mode, currentShop, updateShopBranding, appointments } = useStore();
+  const { mode, currentShop, updateShopBranding } = useStore();
 
   useEffect(() => {
     if (mode !== 'live') return;
@@ -18,9 +16,9 @@ export function useSupabaseRealtime(shopId?: string) {
     const supabase = createClient();
     const activeShopId = shopId || currentShop?.id;
 
-    // Channel para suscripciones en vivo
+    // Canal para suscripciones en vivo
     const channel = supabase
-      .channel(`realtime_shop_${activeShopId || 'global'}`)
+      .channel(`realtime_global_${activeShopId || 'saas'}`)
       .on(
         'postgres_changes',
         {
@@ -29,13 +27,66 @@ export function useSupabaseRealtime(shopId?: string) {
           table: 'tenants',
         },
         (payload: any) => {
-          if (payload.new && payload.new.id === activeShopId) {
-            const newTenant = payload.new;
-            // Sincronizar tema y datos de la barbería en vivo
-            if (newTenant.theme) {
-              updateShopBranding(newTenant.id, {
-                name: newTenant.name,
-                ...newTenant.theme,
+          const row = payload.new;
+          if (!row) return;
+
+          const store = useStore.getState();
+          // Update shops list in real-time
+          useStore.setState({
+            shops: store.shops.map((s) =>
+              s.id === row.id
+                ? {
+                    ...s,
+                    name: row.name || s.name,
+                    status: row.status || s.status,
+                    nextBillingDate: row.next_billing_date || s.nextBillingDate,
+                    lastPaymentDate: row.last_payment_date || s.lastPaymentDate,
+                    subscriptionStatus: row.subscription_status || s.subscriptionStatus,
+                    theme: row.theme || s.theme,
+                  }
+                : s
+            ),
+          });
+
+          // Also update active currentShop if it's the current one
+          if (row.id === activeShopId && row.theme) {
+            updateShopBranding(row.id, {
+              name: row.name,
+              ...row.theme,
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'saas_payments',
+        },
+        (payload: any) => {
+          const newRow = payload.new;
+          if (newRow) {
+            const store = useStore.getState();
+            const exists = store.saasPayments.some((p) => p.id === newRow.id);
+            if (!exists) {
+              const mappedPayment: SaasPayment = {
+                id: newRow.id,
+                tenantId: newRow.tenant_id,
+                tenantName: store.shops.find((s) => s.id === newRow.tenant_id)?.name || newRow.tenant_id,
+                amount: Number(newRow.amount) || 0,
+                date: newRow.date,
+                billingPeriodStart: newRow.billing_period_start,
+                billingPeriodEnd: newRow.billing_period_end,
+                paymentMethod: newRow.payment_method,
+                reference: newRow.reference,
+                notes: newRow.notes,
+                recordedBy: newRow.recorded_by || 'SuperAdmin',
+                createdAt: newRow.created_at,
+              };
+
+              useStore.setState({
+                saasPayments: [mappedPayment, ...store.saasPayments],
               });
             }
           }
@@ -130,3 +181,4 @@ export function useSupabaseRealtime(shopId?: string) {
     };
   }, [mode, currentShop?.id, shopId, updateShopBranding]);
 }
+

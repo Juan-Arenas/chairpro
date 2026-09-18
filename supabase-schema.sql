@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS public.tenants (
     plan VARCHAR(50) DEFAULT 'pro' CHECK (plan IN ('trial', 'basic', 'pro', 'enterprise')),
     status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'trial')),
     mrr NUMERIC(12, 2) DEFAULT 189000.00,
+    next_billing_date DATE DEFAULT (CURRENT_DATE + INTERVAL '30 days'),
+    last_payment_date DATE DEFAULT CURRENT_DATE,
+    subscription_status VARCHAR(50) DEFAULT 'active' CHECK (subscription_status IN ('active', 'expiring_soon', 'overdue', 'suspended')),
     theme JSONB DEFAULT '{
         "mode": "dark",
         "primaryColor": "#7c3aed",
@@ -222,6 +225,21 @@ CREATE TABLE IF NOT EXISTS public.inventory_movements (
     created_by TEXT NOT NULL
 );
 
+-- 2.12 TABLA DE PAGOS DE MENSUALIDADES SAAS (Suscripciones cobradas a las Barberías)
+CREATE TABLE IF NOT EXISTS public.saas_payments (
+    id TEXT PRIMARY KEY DEFAULT 'spay_' || substr(gen_random_uuid()::text, 1, 12),
+    tenant_id TEXT NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+    amount NUMERIC(12, 2) NOT NULL DEFAULT 189000.00,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    billing_period_start DATE NOT NULL,
+    billing_period_end DATE NOT NULL,
+    payment_method VARCHAR(50) NOT NULL CHECK (payment_method IN ('nequi', 'daviplata', 'transferencia', 'efectivo', 'banco')),
+    reference VARCHAR(255),
+    notes TEXT,
+    recorded_by VARCHAR(255) DEFAULT 'SuperAdmin',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 3. FUNCIONES AUXILIARES Y TRIGGERS (Definidas tras crear las tablas)
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -301,6 +319,7 @@ CREATE INDEX IF NOT EXISTS idx_appointments_barber ON public.appointments(barber
 CREATE INDEX IF NOT EXISTS idx_transactions_tenant ON public.transactions(tenant_id, date);
 CREATE INDEX IF NOT EXISTS idx_notifications_tenant ON public.notifications(tenant_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_automations_tenant ON public.automations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_saas_payments_tenant ON public.saas_payments(tenant_id, date);
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 5. ROW LEVEL SECURITY (RLS) — AISLAMIENTO REAL POR TENANT
@@ -317,6 +336,7 @@ ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.saas_payments ENABLE ROW LEVEL SECURITY;
 
 -- ─── TENANTS ──────────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "superadmin_select_all_tenants" ON public.tenants;
@@ -521,6 +541,18 @@ CREATE POLICY "admin_manage_inventory" ON public.inventory_movements
     AND public.get_user_role() = 'admin'
   );
 
+-- ─── SAAS PAYMENTS (Suscripciones) ──────────────────────────────────────────
+DROP POLICY IF EXISTS "superadmin_all_saas_payments" ON public.saas_payments;
+CREATE POLICY "superadmin_all_saas_payments" ON public.saas_payments
+  FOR ALL USING (public.is_superadmin());
+
+DROP POLICY IF EXISTS "tenant_select_own_saas_payments" ON public.saas_payments;
+CREATE POLICY "tenant_select_own_saas_payments" ON public.saas_payments
+  FOR SELECT USING (
+    tenant_id = public.get_user_tenant_id()
+    AND public.get_user_role() IN ('admin', 'superadmin')
+  );
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 6. DATOS INICIALES (SEED DATA PARA EMPEZAR A OPERAR DE INMEDIATO)
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -636,6 +668,14 @@ VALUES (
   true
 ) ON CONFLICT (email) DO UPDATE SET role = 'superadmin';
 
+-- 6.8 Pagos de Mensualidades Iniciales (Historial de Cobros SaaS)
+INSERT INTO public.saas_payments (id, tenant_id, amount, date, billing_period_start, billing_period_end, payment_method, reference, notes, recorded_by)
+VALUES
+  ('spay_tbc_sep', 'shop_the_black_chair', 189000.00, '2026-09-15', '2026-09-15', '2026-10-15', 'nequi', 'NEQ-9847291', 'Pago mensualidad Plan Pro puntual por Nequi', 'Juan Arenas (SuperAdmin)'),
+  ('spay_fm_ago', 'shop_fade_master', 249000.00, '2026-08-22', '2026-08-22', '2026-09-22', 'transferencia', 'BAN-0038912', 'Transferencia Bancolombia Plan Enterprise', 'Juan Arenas (SuperAdmin)'),
+  ('spay_lc_ago', 'shop_la_clasica', 129000.00, '2026-08-10', '2026-08-10', '2026-09-10', 'daviplata', 'DAV-7718293', 'Pago Plan Básico Daviplata', 'Juan Arenas (SuperAdmin)')
+ON CONFLICT (id) DO NOTHING;
+
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- 7. SUPABASE REALTIME REPLICATION (Habilitar cambios en vivo para WebSocket)
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -675,7 +715,15 @@ BEGIN
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
   END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'saas_payments'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.saas_payments;
+  END IF;
 EXCEPTION
   WHEN OTHERS THEN NULL;
 END $$;
+
 

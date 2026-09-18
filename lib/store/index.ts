@@ -7,18 +7,19 @@ import {
   Appointment, Transaction, Notification, Automation,
   InventoryMovement, AppointmentId, BarberId, ClientId,
   ProductId, ServiceId, DashboardKPIs, BarberStats,
-  ShopTheme, UserRole, SaaSPlatformKPIs
+  ShopTheme, UserRole, SaaSPlatformKPIs, SaasPayment,
+  SubscriptionStatus
 } from '@/types';
 import {
   demoBarbershop, demoUsers, demoBarbers, demoClients,
   demoServices, demoProducts, demoAppointments,
   demoTransactions, demoNotifications, demoAutomations,
-  demoShops
+  demoShops, demoSaasPayments
 } from '@/lib/demo-data';
 import {
   generateId, getDayName, timeToMinutes, minutesToTime
 } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 
 // Supabase imports
 import { createClient } from '@/lib/supabase/client';
@@ -40,6 +41,7 @@ interface ChairProStore {
   currentShop: Barbershop | null;
   shops: Barbershop[];
   users: User[];
+  saasPayments: SaasPayment[];
   isAuthenticated: boolean;
   isInitialized: boolean;
 
@@ -65,6 +67,8 @@ interface ChairProStore {
   updateShopBranding: (shopId: string, branding: Partial<ShopTheme & { name?: string; logoUrl?: string; address?: string; phone?: string }>) => void;
   createShop: (data: { name: string; slug: string; ownerEmail: string; ownerName: string; city: string; plan?: 'basic' | 'pro' | 'enterprise'; primaryColor?: string }) => Promise<Barbershop | null>;
   toggleShopStatus: (shopId: string) => void;
+  recordMonthlyPayment: (data: { tenantId: string; amount: number; paymentMethod: SaasPayment['paymentMethod']; date?: string; billingPeriodStart?: string; billingPeriodEnd?: string; reference?: string; notes?: string; autoExtendDays?: number }) => Promise<SaasPayment | null>;
+  updateShopSubscription: (shopId: string, updates: { nextBillingDate?: string; lastPaymentDate?: string; subscriptionStatus?: SubscriptionStatus }) => void;
   getSaaSPlatformKPIs: () => SaaSPlatformKPIs;
 
   // ── Auth Actions ──────────────────────────────────────────────
@@ -136,6 +140,7 @@ export const useStore = create<ChairProStore>()(
       currentShop: null,
       shops: [],
       users: [],
+      saasPayments: [],
       isAuthenticated: false,
       isInitialized: false,
       barbers: [],
@@ -159,6 +164,9 @@ export const useStore = create<ChairProStore>()(
         const defaultShop = state.currentShop || demoBarbershop;
         
         if (state.isInitialized && state.shops?.length > 0 && state.barbers?.length > 0 && state.services?.length > 0) {
+          if (state.saasPayments.length === 0) {
+            set({ saasPayments: demoSaasPayments });
+          }
           return;
         }
 
@@ -166,6 +174,7 @@ export const useStore = create<ChairProStore>()(
           shops: demoShops,
           users: demoUsers,
           currentShop: defaultShop,
+          saasPayments: demoSaasPayments,
           barbers: demoBarbers,
           clients: demoClients,
           services: demoServices,
@@ -195,8 +204,15 @@ export const useStore = create<ChairProStore>()(
 
           // Determine which shops to load
           let shops: Barbershop[] = [];
+          let saasPayments: SaasPayment[] = [];
+
           if (user.role === 'superadmin') {
             shops = await db.fetchAllShops();
+            try {
+              saasPayments = await db.fetchSaasPayments();
+            } catch (e) {
+              console.error('Error loading saas payments:', e);
+            }
           } else {
             const shop = await db.fetchShopById(user.shopId);
             if (shop) shops = [shop];
@@ -212,6 +228,7 @@ export const useStore = create<ChairProStore>()(
               currentUser: user,
               currentShop,
               shops,
+              saasPayments,
               isAuthenticated: true,
               isInitialized: true,
               isLoading: false,
@@ -224,6 +241,7 @@ export const useStore = create<ChairProStore>()(
               currentUser: user,
               currentShop: null,
               shops,
+              saasPayments,
               isAuthenticated: true,
               isInitialized: true,
               isLoading: false,
@@ -505,6 +523,92 @@ export const useStore = create<ChairProStore>()(
         }));
         if (get().mode === 'live') {
           db.toggleTenantStatus(shopId);
+        }
+      },
+
+      recordMonthlyPayment: async (data) => {
+        const { shops, mode, currentUser } = get();
+        const shop = shops.find((s) => s.id === data.tenantId) || shops.find((s) => s.slug === data.tenantId);
+        if (!shop) return null;
+
+        const paymentDate = data.date || format(new Date(), 'yyyy-MM-dd');
+        const periodStart = data.billingPeriodStart || paymentDate;
+        
+        let periodEnd = data.billingPeriodEnd;
+        if (!periodEnd) {
+          const daysToAdd = data.autoExtendDays || 30;
+          const baseDate = new Date(periodStart);
+          periodEnd = format(addDays(baseDate, daysToAdd), 'yyyy-MM-dd');
+        }
+
+        const paymentRecord: SaasPayment = {
+          id: `spay_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          tenantId: shop.id,
+          tenantName: shop.name,
+          amount: Number(data.amount) || shop.mrr || 189000,
+          date: paymentDate,
+          billingPeriodStart: periodStart,
+          billingPeriodEnd: periodEnd,
+          paymentMethod: data.paymentMethod,
+          reference: data.reference || '',
+          notes: data.notes || '',
+          recordedBy: currentUser ? `${currentUser.name}` : 'SuperAdmin',
+          createdAt: new Date().toISOString(),
+        };
+
+        // Update local state immediately
+        set((state) => ({
+          saasPayments: [paymentRecord, ...state.saasPayments],
+          shops: state.shops.map((s) =>
+            s.id === shop.id
+              ? {
+                  ...s,
+                  nextBillingDate: periodEnd,
+                  lastPaymentDate: paymentDate,
+                  subscriptionStatus: 'active' as const,
+                }
+              : s
+          ),
+        }));
+
+        // In live mode, save in Supabase
+        if (mode === 'live') {
+          try {
+            await db.recordSaasPayment({
+              tenantId: shop.id,
+              amount: paymentRecord.amount,
+              date: paymentRecord.date,
+              billingPeriodStart: paymentRecord.billingPeriodStart,
+              billingPeriodEnd: paymentRecord.billingPeriodEnd,
+              paymentMethod: paymentRecord.paymentMethod,
+              reference: paymentRecord.reference,
+              notes: paymentRecord.notes,
+              recordedBy: paymentRecord.recordedBy,
+            });
+          } catch (err) {
+            console.error('Error saving SaaS payment to Supabase:', err);
+          }
+        }
+
+        return paymentRecord;
+      },
+
+      updateShopSubscription: (shopId, updates) => {
+        set((state) => ({
+          shops: state.shops.map((s) =>
+            s.id === shopId
+              ? {
+                  ...s,
+                  ...(updates.nextBillingDate ? { nextBillingDate: updates.nextBillingDate } : {}),
+                  ...(updates.lastPaymentDate ? { lastPaymentDate: updates.lastPaymentDate } : {}),
+                  ...(updates.subscriptionStatus ? { subscriptionStatus: updates.subscriptionStatus } : {}),
+                }
+              : s
+          ),
+        }));
+
+        if (get().mode === 'live') {
+          db.updateTenantSubscription(shopId, updates);
         }
       },
 

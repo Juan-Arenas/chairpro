@@ -147,20 +147,21 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
 }
 
 export default function BrandingStudioPage() {
-  const { currentShop, updateShopBranding } = useStore();
+  const { currentShop, shops, updateShopBranding } = useStore();
+  const targetShop = currentShop || shops[0];
 
-  const [shopName, setShopName] = useState(currentShop?.name || '');
-  const [tagline, setTagline] = useState(currentShop?.theme?.tagline || '');
-  const [logoUrl, setLogoUrl] = useState(currentShop?.theme?.logoUrl || '✂️');
+  const [shopName, setShopName] = useState(targetShop?.name || 'Mi Barbería');
+  const [tagline, setTagline] = useState(targetShop?.theme?.tagline || '');
+  const [logoUrl, setLogoUrl] = useState(targetShop?.theme?.logoUrl || '✂️');
   const [logoTab, setLogoTab] = useState<'emoji' | 'upload' | 'url'>('emoji');
-  const [primaryColor, setPrimaryColor] = useState(currentShop?.theme?.primaryColor || '#7c3aed');
-  const [mode, setMode] = useState<'dark' | 'light'>(currentShop?.theme?.mode || 'dark');
+  const [primaryColor, setPrimaryColor] = useState(targetShop?.theme?.primaryColor || '#7c3aed');
+  const [mode, setMode] = useState<'dark' | 'light'>(targetShop?.theme?.mode || 'dark');
   const [backgroundType, setBackgroundType] = useState<'gradient' | 'solid' | 'image'>(
-    currentShop?.theme?.backgroundType || 'gradient'
+    targetShop?.theme?.backgroundType || 'gradient'
   );
-  const [backgroundImage, setBackgroundImage] = useState(currentShop?.theme?.backgroundImage || '');
+  const [backgroundImage, setBackgroundImage] = useState(targetShop?.theme?.backgroundImage || '');
   const [backgroundOpacity, setBackgroundOpacity] = useState(
-    currentShop?.theme?.backgroundOpacity ?? 0.15
+    targetShop?.theme?.backgroundOpacity ?? 0.15
   );
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
   const [savedAlert, setSavedAlert] = useState(false);
@@ -173,19 +174,24 @@ export default function BrandingStudioPage() {
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
 
+  const isLogoImage = Boolean(
+    logoUrl &&
+    (logoUrl.startsWith('http') || logoUrl.startsWith('data:image') || logoUrl.startsWith('/'))
+  );
+
   // Sync with currentShop if switched
   useEffect(() => {
-    if (currentShop) {
-      setShopName(currentShop.name);
-      setTagline(currentShop.theme?.tagline || '');
-      setLogoUrl(currentShop.theme?.logoUrl || '✂️');
-      setPrimaryColor(currentShop.theme?.primaryColor || '#7c3aed');
-      setMode(currentShop.theme?.mode || 'dark');
-      setBackgroundType(currentShop.theme?.backgroundType || 'gradient');
-      setBackgroundImage(currentShop.theme?.backgroundImage || '');
-      setBackgroundOpacity(currentShop.theme?.backgroundOpacity ?? 0.15);
+    if (targetShop) {
+      setShopName(targetShop.name);
+      setTagline(targetShop.theme?.tagline || '');
+      setLogoUrl(targetShop.theme?.logoUrl || '✂️');
+      setPrimaryColor(targetShop.theme?.primaryColor || '#7c3aed');
+      setMode(targetShop.theme?.mode || 'dark');
+      setBackgroundType(targetShop.theme?.backgroundType || 'gradient');
+      setBackgroundImage(targetShop.theme?.backgroundImage || '');
+      setBackgroundOpacity(targetShop.theme?.backgroundOpacity ?? 0.15);
     }
-  }, [currentShop]);
+  }, [targetShop]);
 
   // LIVE CSS INJECTION: Update document variables immediately as controls move
   useEffect(() => {
@@ -208,9 +214,10 @@ export default function BrandingStudioPage() {
   }, [primaryColor, mode]);
 
   const handleSave = () => {
-    if (!currentShop) return;
+    const shopToUpdate = currentShop || shops[0];
+    if (!shopToUpdate) return;
 
-    updateShopBranding(currentShop.id, {
+    updateShopBranding(shopToUpdate.id, {
       name: shopName,
       tagline,
       logoUrl,
@@ -336,8 +343,6 @@ export default function BrandingStudioPage() {
       setTimeout(() => setGeneratedSuccessMsg(''), 4500);
     }, 350);
   };
-
-  const isLogoImage = logoUrl.startsWith('http') || logoUrl.startsWith('/') || logoUrl.startsWith('data:image');
 
   return (
     <div className="space-y-6 pb-24 lg:pb-8">

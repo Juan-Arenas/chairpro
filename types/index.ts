@@ -23,6 +23,23 @@ export interface ShopTheme {
 }
 
 // ── Shop ──────────────────────────────────────────────────────────────────────
+export type SubscriptionStatus = 'active' | 'expiring_soon' | 'overdue' | 'suspended';
+
+export interface SaasPayment {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  amount: number;
+  date: string;
+  billingPeriodStart: string;
+  billingPeriodEnd: string;
+  paymentMethod: 'nequi' | 'daviplata' | 'transferencia' | 'efectivo' | 'banco';
+  reference?: string;
+  notes?: string;
+  recordedBy: string;
+  createdAt: string;
+}
+
 export interface Barbershop {
   id: ShopId;
   name: string;
@@ -41,6 +58,9 @@ export interface Barbershop {
   theme: ShopTheme;
   status: 'active' | 'suspended' | 'trial';
   mrr: number; // Monthly recurring revenue for SaaS tracking
+  nextBillingDate?: string;
+  lastPaymentDate?: string;
+  subscriptionStatus?: SubscriptionStatus;
   workingHours: Record<string, { isOpen: boolean; open: string; close: string }>;
   settings: {
     allowOnlineBooking: boolean;

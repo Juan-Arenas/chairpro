@@ -15,7 +15,7 @@ import { createClient } from '@/lib/supabase/client';
 import type {
   Barbershop, User, Barber, Client, Service, Product,
   Appointment, Transaction, Notification, Automation,
-  InventoryMovement, ShopTheme
+  InventoryMovement, ShopTheme, SaasPayment, SubscriptionStatus
 } from '@/types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -48,6 +48,9 @@ function mapTenantToBarbershop(row: any): Barbershop {
     },
     status: row.status,
     mrr: Number(row.mrr) || 0,
+    nextBillingDate: row.next_billing_date,
+    lastPaymentDate: row.last_payment_date,
+    subscriptionStatus: row.subscription_status || 'active',
     workingHours: row.working_hours || {},
     settings: row.settings || {},
     plan: row.plan,
@@ -204,6 +207,23 @@ function mapRowToAutomation(row: any): Automation {
     isActive: row.is_active,
     runCount: row.run_count || 0,
     lastRunAt: row.last_run_at,
+  };
+}
+
+function mapRowToSaasPayment(row: any): SaasPayment {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    tenantName: row.tenants?.name || row.tenant_name || 'Barbería',
+    amount: Number(row.amount) || 0,
+    date: row.date,
+    billingPeriodStart: row.billing_period_start,
+    billingPeriodEnd: row.billing_period_end,
+    paymentMethod: row.payment_method,
+    reference: row.reference,
+    notes: row.notes,
+    recordedBy: row.recorded_by || 'SuperAdmin',
+    createdAt: row.created_at,
   };
 }
 
@@ -810,3 +830,97 @@ export async function fetchPublicShopData(slug: string) {
     services: (services || []).map(mapRowToService),
   };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// QUERIES: SaaS Subscriptions & Payments (SuperAdmin)
+// ═══════════════════════════════════════════════════════════════
+
+export async function fetchSaasPayments(): Promise<SaasPayment[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('saas_payments')
+    .select('*, tenants(name)')
+    .order('date', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map((row: any) => ({
+    ...mapRowToSaasPayment(row),
+    tenantName: row.tenants?.name || row.tenant_id,
+  }));
+}
+
+export async function recordSaasPayment(payment: {
+  tenantId: string;
+  amount: number;
+  date: string;
+  billingPeriodStart: string;
+  billingPeriodEnd: string;
+  paymentMethod: SaasPayment['paymentMethod'];
+  reference?: string;
+  notes?: string;
+  recordedBy?: string;
+}): Promise<SaasPayment | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('saas_payments')
+    .insert({
+      tenant_id: payment.tenantId,
+      amount: payment.amount,
+      date: payment.date,
+      billing_period_start: payment.billingPeriodStart,
+      billing_period_end: payment.billingPeriodEnd,
+      payment_method: payment.paymentMethod,
+      reference: payment.reference,
+      notes: payment.notes,
+      recorded_by: payment.recordedBy || 'SuperAdmin',
+    })
+    .select('*, tenants(name)')
+    .single();
+
+  if (error || !data) {
+    console.error('Error recording SaaS payment in Supabase:', error);
+    return null;
+  }
+
+  // Automatically update the tenant's next_billing_date and last_payment_date in Supabase
+  await supabase
+    .from('tenants')
+    .update({
+      next_billing_date: payment.billingPeriodEnd,
+      last_payment_date: payment.date,
+      subscription_status: 'active',
+    })
+    .eq('id', payment.tenantId);
+
+  return {
+    ...mapRowToSaasPayment(data),
+    tenantName: data.tenants?.name || payment.tenantId,
+  };
+}
+
+export async function updateTenantSubscription(
+  shopId: string,
+  data: {
+    nextBillingDate?: string;
+    lastPaymentDate?: string;
+    subscriptionStatus?: SubscriptionStatus;
+  }
+) {
+  const supabase = createClient();
+  const updateData: any = {};
+  if (data.nextBillingDate) updateData.next_billing_date = data.nextBillingDate;
+  if (data.lastPaymentDate) updateData.last_payment_date = data.lastPaymentDate;
+  if (data.subscriptionStatus) updateData.subscription_status = data.subscriptionStatus;
+
+  const { error } = await supabase
+    .from('tenants')
+    .update(updateData)
+    .eq('id', shopId);
+
+  if (error) {
+    console.error('Error updating tenant subscription in Supabase:', error);
+    return false;
+  }
+  return true;
+}
+
