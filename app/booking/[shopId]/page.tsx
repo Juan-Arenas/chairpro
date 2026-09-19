@@ -146,7 +146,27 @@ function BookingContent() {
   }, [initialBarberParam, initialServiceParam]);
 
   const selectedService = shopServices.find((s) => s.id === selectedServiceId);
-  const selectedBarber = shopBarbers.find((b) => b.id === selectedBarberId);
+  const selectedBarber = useMemo(() => {
+    if (!selectedBarberId || selectedBarberId === 'any') return null;
+    const cleanParam = selectedBarberId.toLowerCase().trim();
+    return (
+      shopBarbers.find(
+        (b) =>
+          b.id === selectedBarberId ||
+          b.id.toLowerCase() === cleanParam ||
+          b.name.toLowerCase().includes(cleanParam) ||
+          cleanParam.includes(b.id.toLowerCase())
+      ) ||
+      demoBarbers.find(
+        (b) =>
+          b.id === selectedBarberId ||
+          b.id.toLowerCase() === cleanParam ||
+          b.name.toLowerCase().includes(cleanParam) ||
+          cleanParam.includes(b.id.toLowerCase())
+      ) ||
+      shopBarbers[0]
+    );
+  }, [shopBarbers, selectedBarberId]);
 
   // Available dates (next 10 days)
   const availableDates = useMemo(() => {

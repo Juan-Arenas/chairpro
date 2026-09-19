@@ -42,9 +42,21 @@ export default function QRStudioPage() {
   const [paymentPhone, setPaymentPhone] = useState(currentShop?.phone || '3001234567');
   const [paymentProvider, setPaymentProvider] = useState<'nequi' | 'daviplata' | 'bancolombia'>('nequi');
 
-  // Print Mode
-  const [isPosterMode, setIsPosterMode] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState(false);
+  const effectiveBarberId = selectedBarberId || barbers[0]?.id || 'barber_carlos';
+  const effectiveServiceId = selectedServiceId || services[0]?.id || 'svc_1';
+
+  // Auto-sync selection when store loads
+  useEffect(() => {
+    if (barbers.length > 0 && !selectedBarberId) {
+      setSelectedBarberId(barbers[0].id);
+    }
+  }, [barbers, selectedBarberId]);
+
+  useEffect(() => {
+    if (services.length > 0 && !selectedServiceId) {
+      setSelectedServiceId(services[0].id);
+    }
+  }, [services, selectedServiceId]);
 
   const shopSlug = currentShop?.slug || 'the-black-chair';
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://chairpro.app';
@@ -55,8 +67,8 @@ export default function QRStudioPage() {
     switch (category) {
       case 'booking': {
         let url = baseBookingUrl;
-        if (bookingType === 'barber' && selectedBarberId) url += `?barber=${selectedBarberId}`;
-        if (bookingType === 'service' && selectedServiceId) url += `?service=${selectedServiceId}`;
+        if (bookingType === 'barber') url += `?barber=${effectiveBarberId}`;
+        if (bookingType === 'service') url += `?service=${effectiveServiceId}`;
         return url;
       }
       case 'whatsapp': {
@@ -84,8 +96,8 @@ export default function QRStudioPage() {
   const getQRTitle = (): string => {
     switch (category) {
       case 'booking':
-        if (bookingType === 'barber') return `Reserva con ${barbers.find(b => b.id === selectedBarberId)?.name || 'Barbero'}`;
-        if (bookingType === 'service') return `Reserva ${services.find(s => s.id === selectedServiceId)?.name || 'Servicio'}`;
+        if (bookingType === 'barber') return `Reserva con ${barbers.find(b => b.id === effectiveBarberId)?.name || 'Carlos Mendoza'}`;
+        if (bookingType === 'service') return `Reserva ${services.find(s => s.id === effectiveServiceId)?.name || 'Servicio'}`;
         return 'Reserva Online de Turnos';
       case 'whatsapp':
         return 'WhatsApp Directo Barbería';
