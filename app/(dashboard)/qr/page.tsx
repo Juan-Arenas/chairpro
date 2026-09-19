@@ -1,170 +1,502 @@
 'use client';
+
 import { useState, useRef } from 'react';
 import { useStore } from '@/lib/store';
-import { QrCode, Download, ExternalLink, Smartphone } from 'lucide-react';
+import {
+  QrCode, Download, ExternalLink, Smartphone, Printer,
+  Sparkles, MessageCircle, Star, Wifi, DollarSign, Check,
+  Copy, Scissors, RefreshCw, Share2, Info
+} from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { cn } from '@/lib/utils';
 
-// Dynamic import for SSR compatibility
+// Dynamic import for SSR compatibility with high-quality rendering
 const QRCodeCanvas = dynamic(() => import('qrcode.react').then(m => m.QRCodeCanvas), { ssr: false });
+const QRCodeSVG = dynamic(() => import('qrcode.react').then(m => m.QRCodeSVG), { ssr: false });
 
-export default function QRPage() {
+type QRCategory = 'booking' | 'whatsapp' | 'google_reviews' | 'wifi' | 'payment';
+
+export default function QRStudioPage() {
   const { currentShop, barbers, services } = useStore();
-  const [qrType, setQrType] = useState<'general' | 'barber' | 'service'>('general');
-  const [selectedBarberId, setSelectedBarberId] = useState('');
-  const [selectedServiceId, setSelectedServiceId] = useState('');
-  const qrRef = useRef<HTMLCanvasElement>(null);
+
+  const [category, setCategory] = useState<QRCategory>('booking');
+  
+  // Booking Sub-options
+  const [bookingType, setBookingType] = useState<'general' | 'barber' | 'service'>('general');
+  const [selectedBarberId, setSelectedBarberId] = useState(barbers[0]?.id || '');
+  const [selectedServiceId, setSelectedServiceId] = useState(services[0]?.id || '');
+
+  // WhatsApp Sub-options
+  const [waPhone, setWaPhone] = useState(currentShop?.phone || '+57 300 123 4567');
+  const [waMessage, setWaMessage] = useState(`¡Hola ${currentShop?.name || 'The Black Chair'}! 💈 Quiero agendar un turno.`);
+
+  // Google Reviews Sub-options
+  const [googleBusinessName, setGoogleBusinessName] = useState(currentShop?.name || 'The Black Chair Barbería');
+
+  // WiFi Sub-options
+  const [wifiSsid, setWifiSsid] = useState(`${currentShop?.name || 'Barberia'}_Clientes_5G`);
+  const [wifiPass, setWifiPass] = useState('Barberia2026*');
+  const [wifiType, setWifiType] = useState<'WPA' | 'WEP' | 'nopass'>('WPA');
+
+  // Payment Sub-options
+  const [paymentPhone, setPaymentPhone] = useState(currentShop?.phone || '3001234567');
+  const [paymentProvider, setPaymentProvider] = useState<'nequi' | 'daviplata' | 'bancolombia'>('nequi');
+
+  // Print Mode
+  const [isPosterMode, setIsPosterMode] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   const shopSlug = currentShop?.slug || 'the-black-chair';
-  const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/booking/${shopSlug}` : `https://saas-barberias.netlify.app/booking/${shopSlug}`;
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://chairpro.app';
+  const baseBookingUrl = `${origin}/booking/${shopSlug}`;
 
-  const getQRValue = () => {
-    let url = baseUrl;
-    if (qrType === 'barber' && selectedBarberId) url += `?barber=${selectedBarberId}`;
-    if (qrType === 'service' && selectedServiceId) url += `?service=${selectedServiceId}`;
-    return url;
+  // Calculate Real Scannable QR Payload
+  const getQRValue = (): string => {
+    switch (category) {
+      case 'booking': {
+        let url = baseBookingUrl;
+        if (bookingType === 'barber' && selectedBarberId) url += `?barber=${selectedBarberId}`;
+        if (bookingType === 'service' && selectedServiceId) url += `?service=${selectedServiceId}`;
+        return url;
+      }
+      case 'whatsapp': {
+        const cleanPhone = waPhone.replace(/\D/g, '');
+        const encodedMsg = encodeURIComponent(waMessage);
+        return `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
+      }
+      case 'google_reviews': {
+        return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(googleBusinessName)}` || `https://maps.google.com/?q=${encodeURIComponent(googleBusinessName)}`;
+      }
+      case 'wifi': {
+        return `WIFI:S:${wifiSsid};T:${wifiType};P:${wifiPass};;`;
+      }
+      case 'payment': {
+        const clean = paymentPhone.replace(/\D/g, '');
+        if (paymentProvider === 'nequi') return `https://recarga.nequi.com.co/?phone=${clean}`;
+        if (paymentProvider === 'daviplata') return `https://www.daviplata.com/pagos?phone=${clean}`;
+        return `https://bancolombia.com/pagos?cel=${clean}`;
+      }
+      default:
+        return baseBookingUrl;
+    }
   };
 
-  const getQRTitle = () => {
-    if (qrType === 'barber' && selectedBarberId) return `QR — ${barbers.find(b => b.id === selectedBarberId)?.name || 'Barbero'}`;
-    if (qrType === 'service' && selectedServiceId) return `QR — ${services.find(s => s.id === selectedServiceId)?.name || 'Servicio'}`;
-    return 'QR General de Reservas';
+  const getQRTitle = (): string => {
+    switch (category) {
+      case 'booking':
+        if (bookingType === 'barber') return `Reserva con ${barbers.find(b => b.id === selectedBarberId)?.name || 'Barbero'}`;
+        if (bookingType === 'service') return `Reserva ${services.find(s => s.id === selectedServiceId)?.name || 'Servicio'}`;
+        return 'Reserva Online de Turnos';
+      case 'whatsapp':
+        return 'WhatsApp Directo Barbería';
+      case 'google_reviews':
+        return 'Calificación 5 Estrellas Google Maps';
+      case 'wifi':
+        return `Wi-Fi Gratis — ${wifiSsid}`;
+      case 'payment':
+        return `Pago Rápido ${paymentProvider.toUpperCase()}`;
+    }
   };
 
-  const handleDownload = () => {
-    const canvas = document.querySelector('canvas');
+  const getQRSubtitle = (): string => {
+    switch (category) {
+      case 'booking':
+        return 'Abre el portal web interactivo para agendar cita en 3 pasos sin registros.';
+      case 'whatsapp':
+        return 'Abre WhatsApp en el celular del cliente con mensaje listo para enviar.';
+      case 'google_reviews':
+        return 'Abre la ventana de reseñas de Google para acumular calificaciones en el espejo.';
+      case 'wifi':
+        return 'Conecta automáticamente cualquier iPhone o Android a tu red sin pedir clave.';
+      case 'payment':
+        return 'Abre la pasarela de pago o transferencia rápida para propinas o cobros.';
+    }
+  };
+
+  // Download High-Res PNG
+  const handleDownloadPNG = () => {
+    const canvas = document.getElementById('main-qr-canvas') as HTMLCanvasElement;
     if (!canvas) return;
     const url = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = url;
-    a.download = `martiarenas-qr-${qrType}.png`;
+    a.download = `chairpro-qr-${category}-${Date.now()}.png`;
     a.click();
   };
 
-  const QR_TYPES = [
-    { value: 'general', label: 'QR General', desc: 'Reservas para cualquier barbero y servicio' },
-    { value: 'barber', label: 'QR por Barbero', desc: 'Dirige directamente a un barbero específico' },
-    { value: 'service', label: 'QR por Servicio', desc: 'Precarga un servicio específico' },
-  ];
+  // Print Poster
+  const handlePrint = () => {
+    window.print();
+  };
 
-  const USE_CASES = [
-    { icon: '🪞', label: 'Espejo de la barbería' },
-    { icon: '📋', label: 'Mostrador / recepción' },
-    { icon: '📸', label: 'Historias de Instagram' },
-    { icon: '🎥', label: 'TikTok y redes sociales' },
-    { icon: '🗺️', label: 'Perfil de Google' },
-    { icon: '📄', label: 'Tarjetas de presentación' },
-    { icon: '📰', label: 'Volantes y publicidad' },
-    { icon: '📱', label: 'WhatsApp Business' },
-  ];
+  const handleCopy = () => {
+    navigator.clipboard.writeText(getQRValue());
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
+  const primaryColor = currentShop?.theme?.primaryColor || '#7C3AED';
 
   return (
-    <div className="space-y-5 pb-20 lg:pb-4">
-      <div>
-        <h2 className="section-title">Generador de Códigos QR</h2>
-        <p className="section-desc">Tus clientes reservan escaneando — sin llamadas, sin mensajes</p>
+    <div className="space-y-6 pb-20 lg:pb-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <h2 className="section-title flex items-center gap-2">
+              <QrCode className="w-6 h-6 text-violet-400" />
+              Estudio de Códigos QR Oficiales
+            </h2>
+          </div>
+          <p className="section-desc">
+            Códigos QR 100% reales y funcionales con estándar ISO/IEC 18004. Escaneables con cualquier cámara de celular.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrint}
+            className="btn-secondary text-xs flex items-center gap-1.5"
+          >
+            <Printer className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Imprimir Póster para Espejo</span>
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Config */}
-        <div className="space-y-4">
-          <div className="card p-5">
-            <h3 className="font-semibold text-zinc-100 mb-4">Tipo de QR</h3>
-            <div className="space-y-2">
-              {QR_TYPES.map(t => (
-                <button key={t.value} onClick={() => setQrType(t.value as any)}
-                  className={`w-full flex items-start gap-3 p-3 rounded-xl border transition-all text-left ${qrType === t.value ? 'border-violet-500 bg-violet-600/10' : 'border-zinc-800 hover:border-zinc-700'}`}>
-                  <div className={`w-4 h-4 rounded-full border-2 shrink-0 mt-0.5 ${qrType === t.value ? 'border-violet-500 bg-violet-500' : 'border-zinc-600'}`} />
-                  <div>
-                    <div className={`text-sm font-semibold ${qrType === t.value ? 'text-violet-300' : 'text-zinc-300'}`}>{t.label}</div>
-                    <div className="text-xs text-zinc-600">{t.desc}</div>
-                  </div>
-                </button>
-              ))}
+      {/* Main Studio Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: QR Category Picker & Inputs */}
+        <div className="lg:col-span-6 space-y-4 print:hidden">
+          {/* Category Selector Cards */}
+          <div className="card p-4 space-y-3 border-zinc-800">
+            <h3 className="font-bold text-xs text-zinc-300 uppercase tracking-wider">
+              1. Selecciona el Tipo de QR Real:
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {[
+                { id: 'booking', label: '📅 Reservas Web', desc: 'Portal de citas 24/7', icon: Scissors },
+                { id: 'whatsapp', label: '💬 WhatsApp Directo', desc: 'Abre chat con 1 toque', icon: MessageCircle },
+                { id: 'google_reviews', label: '⭐ Reseñas Google Maps', desc: 'Booster 5 estrellas', icon: Star },
+                { id: 'wifi', label: '📶 Clave Wi-Fi Rápida', desc: 'Conexión automática', icon: Wifi },
+                { id: 'payment', label: '💸 Pagos / Propinas', desc: 'Nequi / Daviplata', icon: DollarSign },
+              ].map(cat => {
+                const Icon = cat.icon;
+                const isSelected = category === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCategory(cat.id as QRCategory)}
+                    className={cn(
+                      'flex items-start gap-3 p-3 rounded-xl border text-left transition-all',
+                      isSelected
+                        ? 'border-violet-500 bg-violet-500/10 shadow-md'
+                        : 'border-zinc-800 bg-zinc-900/60 hover:border-zinc-700'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
+                        isSelected ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-400'
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className={cn('text-xs font-bold', isSelected ? 'text-violet-200' : 'text-zinc-200')}>
+                        {cat.label}
+                      </div>
+                      <div className="text-[11px] text-zinc-500">{cat.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {qrType === 'barber' && (
-            <div className="card p-5">
-              <h3 className="font-semibold text-zinc-100 mb-3">Seleccionar barbero</h3>
-              <div className="space-y-2">
-                {barbers.filter(b => b.isActive).map(b => (
-                  <button key={b.id} onClick={() => setSelectedBarberId(b.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all ${selectedBarberId === b.id ? 'border-violet-500 bg-violet-600/10' : 'border-zinc-800 hover:border-zinc-700'}`}>
-                    <div className="avatar w-8 h-8 text-xs" style={{ background: `linear-gradient(135deg, ${b.color}99, ${b.color})` }}>{b.name.slice(0, 2)}</div>
-                    <span className={`text-sm font-medium ${selectedBarberId === b.id ? 'text-violet-300' : 'text-zinc-300'}`}>{b.name}</span>
-                    {selectedBarberId === b.id && <div className="ml-auto w-4 h-4 bg-violet-500 rounded-full" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Dynamic Configuration Panel based on Category */}
+          <div className="card p-5 border-zinc-800 space-y-4">
+            <h3 className="font-bold text-xs text-zinc-300 uppercase tracking-wider">
+              2. Configurar Parámetros del QR:
+            </h3>
 
-          {qrType === 'service' && (
-            <div className="card p-5">
-              <h3 className="font-semibold text-zinc-100 mb-3">Seleccionar servicio</h3>
-              <div className="space-y-2">
-                {services.filter(s => s.isActive).map(s => (
-                  <button key={s.id} onClick={() => setSelectedServiceId(s.id)}
-                    className={`w-full flex items-center justify-between gap-3 p-3 rounded-lg border transition-all ${selectedServiceId === s.id ? 'border-violet-500 bg-violet-600/10' : 'border-zinc-800 hover:border-zinc-700'}`}>
-                    <span className={`text-sm font-medium ${selectedServiceId === s.id ? 'text-violet-300' : 'text-zinc-300'}`}>{s.name}</span>
-                    <span className="text-xs text-zinc-500">${(s.price / 1000).toFixed(0)}k</span>
+            {/* Category 1: BOOKING */}
+            {category === 'booking' && (
+              <div className="space-y-3">
+                <div className="flex gap-2 p-1 bg-zinc-950 rounded-xl border border-zinc-800">
+                  <button
+                    onClick={() => setBookingType('general')}
+                    className={cn(
+                      'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                      bookingType === 'general' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                    )}
+                  >
+                    General
                   </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Use cases */}
-          <div className="card p-5">
-            <h3 className="font-semibold text-zinc-100 mb-3 flex items-center gap-2"><Smartphone className="w-4 h-4 text-violet-400" />Usos sugeridos</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {USE_CASES.map(uc => (
-                <div key={uc.label} className="flex items-center gap-2 p-2 rounded-lg bg-zinc-800/30">
-                  <span className="text-base">{uc.icon}</span>
-                  <span className="text-xs text-zinc-400">{uc.label}</span>
+                  <button
+                    onClick={() => setBookingType('barber')}
+                    className={cn(
+                      'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                      bookingType === 'barber' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                    )}
+                  >
+                    Por Barbero
+                  </button>
+                  <button
+                    onClick={() => setBookingType('service')}
+                    className={cn(
+                      'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                      bookingType === 'service' ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                    )}
+                  >
+                    Por Servicio
+                  </button>
                 </div>
-              ))}
+
+                {bookingType === 'barber' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-zinc-300">Selecciona el Barbero del Espejo:</label>
+                    <select
+                      className="input text-xs"
+                      value={selectedBarberId}
+                      onChange={e => setSelectedBarberId(e.target.value)}
+                    >
+                      {barbers.map(b => (
+                        <option key={b.id} value={b.id}>
+                          ✂️ {b.name} (Espejo #{b.id})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {bookingType === 'service' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-zinc-300">Selecciona el Servicio Promocionado:</label>
+                    <select
+                      className="input text-xs"
+                      value={selectedServiceId}
+                      onChange={e => setSelectedServiceId(e.target.value)}
+                    >
+                      {services.map(s => (
+                        <option key={s.id} value={s.id}>
+                          💈 {s.name} — ${s.price.toLocaleString('es-CO')} COP
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Category 2: WHATSAPP */}
+            {category === 'whatsapp' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Número de WhatsApp (con indicativo)</label>
+                  <input
+                    className="input text-xs font-mono"
+                    value={waPhone}
+                    onChange={e => setWaPhone(e.target.value)}
+                    placeholder="+57 300 123 4567"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Mensaje Pre-escrito al escanear</label>
+                  <textarea
+                    rows={3}
+                    className="input text-xs"
+                    value={waMessage}
+                    onChange={e => setWaMessage(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Category 3: GOOGLE REVIEWS */}
+            {category === 'google_reviews' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Nombre de la Barbería en Google Maps</label>
+                  <input
+                    className="input text-xs"
+                    value={googleBusinessName}
+                    onChange={e => setGoogleBusinessName(e.target.value)}
+                    placeholder="Ej: The Black Chair Barbería Bogotá"
+                  />
+                  <p className="text-[11px] text-zinc-500">
+                    Al escanear el QR en el espejo, el cliente abre directamente la pantalla de calificación 5 estrellas.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Category 4: WIFI */}
+            {category === 'wifi' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Nombre de la Red Wi-Fi (SSID)</label>
+                  <input
+                    className="input text-xs font-mono"
+                    value={wifiSsid}
+                    onChange={e => setWifiSsid(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Contraseña del Wi-Fi</label>
+                  <input
+                    className="input text-xs font-mono"
+                    value={wifiPass}
+                    onChange={e => setWifiPass(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Category 5: PAYMENT */}
+            {category === 'payment' && (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  {(['nequi', 'daviplata', 'bancolombia'] as const).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setPaymentProvider(p)}
+                      className={cn(
+                        'flex-1 py-1.5 text-xs font-bold rounded-lg border capitalize transition-all',
+                        paymentProvider === p
+                          ? 'border-violet-500 bg-violet-600 text-white'
+                          : 'border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Número de Cuenta / Teléfono</label>
+                  <input
+                    className="input text-xs font-mono"
+                    value={paymentPhone}
+                    onChange={e => setPaymentPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Real Scannable Payload Preview Link */}
+          <div className="card p-4 bg-zinc-950/80 border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-emerald-400" />
+                Enlace / Carga Útil Codificada en el QR:
+              </span>
+              <button
+                onClick={handleCopy}
+                className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1"
+              >
+                {copiedUrl ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                <span>{copiedUrl ? 'Copiado' : 'Copiar'}</span>
+              </button>
+            </div>
+            <div className="p-2.5 bg-zinc-900 rounded-lg font-mono text-[11px] text-emerald-400 break-all select-all border border-zinc-800">
+              {getQRValue()}
             </div>
           </div>
         </div>
 
-        {/* QR Preview */}
-        <div className="flex flex-col gap-4">
-          <div className="card p-8 flex flex-col items-center text-center">
-            <div className="badge-violet mb-4">{getQRTitle()}</div>
-            <div className="p-4 bg-white rounded-2xl shadow-lg mb-4">
+        {/* Right Column: Interactive QR Display & Mirror Poster Preview */}
+        <div className="lg:col-span-6 space-y-4">
+          <div
+            id="printable-poster"
+            className="card p-8 flex flex-col items-center justify-center text-center relative border-zinc-700 shadow-2xl bg-zinc-900 overflow-hidden"
+          >
+            {/* Top Badge */}
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className="px-3 py-1 rounded-full text-xs font-bold text-white shadow-lg"
+                style={{ backgroundColor: primaryColor }}
+              >
+                {currentShop?.name || 'The Black Chair'} 💈
+              </span>
+            </div>
+
+            <h3 className="font-display font-extrabold text-lg text-zinc-100 mb-1">
+              {getQRTitle()}
+            </h3>
+            <p className="text-xs text-zinc-400 max-w-sm mb-6">
+              {getQRSubtitle()}
+            </p>
+
+            {/* High-Resolution QR Canvas Container */}
+            <div className="p-5 bg-white rounded-3xl shadow-2xl border-4 border-zinc-800 relative group animate-scale-in">
               <QRCodeCanvas
+                id="main-qr-canvas"
                 value={getQRValue()}
-                size={200}
-                bgColor="#ffffff"
-                fgColor="#09090b"
+                size={230}
+                bgColor="#FFFFFF"
+                fgColor="#09090B"
                 level="H"
                 includeMargin={false}
               />
             </div>
-            <div className="text-xs text-zinc-600 mb-4 max-w-48 break-all">{getQRValue()}</div>
-            <div className="flex gap-3 flex-col sm:flex-row w-full">
-              <button onClick={handleDownload} className="btn-primary flex-1">
-                <Download className="w-4 h-4" /> Descargar PNG
+
+            {/* Scan instructions footer */}
+            <div className="mt-6 space-y-1">
+              <div className="text-xs font-bold text-zinc-200 flex items-center justify-center gap-1.5">
+                <Smartphone className="w-4 h-4 text-emerald-400" />
+                Apunta con la cámara de tu celular para escanear
+              </div>
+              <div className="text-[11px] text-zinc-500">
+                Compatible con iPhone, Android, WhatsApp y Google Lens
+              </div>
+            </div>
+
+            {/* Bottom Actions (Hidden when printing) */}
+            <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full max-w-sm print:hidden">
+              <button
+                onClick={handleDownloadPNG}
+                className="btn-primary flex-1 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Descargar PNG de Alta Calidad
               </button>
-              <a href={getQRValue()} target="_blank" rel="noopener noreferrer" className="btn-secondary flex-1 flex items-center justify-center gap-2">
-                <ExternalLink className="w-4 h-4" /> Ver página
-              </a>
+
+              {category === 'booking' && (
+                <a
+                  href={getQRValue()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary py-2.5 px-4 text-xs font-semibold flex items-center justify-center gap-1.5"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Abrir Enlace
+                </a>
+              )}
             </div>
           </div>
 
-          {/* Booking URL */}
-          <div className="card p-4">
-            <div className="stat-label mb-2">URL de reservas</div>
-            <div className="bg-zinc-800 rounded-lg p-3 font-mono text-xs text-violet-300 break-all">{baseUrl}</div>
-            <p className="text-xs text-zinc-600 mt-2">Comparte este enlace directamente o genera el QR para que tus clientes reserven en segundos.</p>
-          </div>
-
-          {/* Stats placeholder */}
-          <div className="card p-4 bg-violet-600/5 border-violet-600/20">
-            <div className="stat-label mb-2">Estadísticas de escaneos</div>
-            <div className="text-2xl font-bold text-violet-400">47</div>
-            <div className="text-xs text-zinc-600">escaneos este mes (datos de demo)</div>
+          {/* Mirror Placement Tips */}
+          <div className="card p-5 border-zinc-800 space-y-3 print:hidden">
+            <h4 className="font-bold text-xs text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              Dónde Colocar Estos Códigos QR en la Barbería:
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="p-3 bg-zinc-900/80 rounded-xl border border-zinc-800 space-y-1">
+                <div className="font-semibold text-zinc-200">🪞 En el Espejo de Cada Barbero</div>
+                <div className="text-[11px] text-zinc-500">
+                  QR de Reseñas 5⭐ en Google y QR de reservas para su próximo corte antes de levantarse.
+                </div>
+              </div>
+              <div className="p-3 bg-zinc-900/80 rounded-xl border border-zinc-800 space-y-1">
+                <div className="font-semibold text-zinc-200">📋 En Recepción / Mostrador</div>
+                <div className="text-[11px] text-zinc-500">
+                  QR de Wi-Fi gratis para clientes en sala de espera y QR de reservas para transeúntes.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -1844,25 +1844,36 @@ ${isAudio ? '🎙️ _Nota de voz procesada con IA_' : '💬 _Mensaje procesado 
         };
       },
 
-      getAvailableSlots: (barberId, date, serviceDuration) => {
+      getAvailableSlots: (barberId, date, serviceDuration = 30) => {
         const { barbers, appointments, currentShop, shops } = get();
         const barber = barbers.find((b) => b.id === barberId);
         if (!barber) return [];
         const shop = currentShop || shops?.find((s) => s.id === barber.shopId) || demoBarbershop;
-        if (!shop) return [];
 
         const dateObj = new Date(date + 'T12:00:00');
         const dayName = getDayName(dateObj) as Barber['schedule'][0]['day'];
-        const scheduleDay = barber.schedule?.find((s) => s.day === dayName);
-        if (!scheduleDay || !scheduleDay.isWorking) return [];
+        
+        // Find or fallback barber schedule
+        const scheduleDay = barber.schedule?.find((s) => s.day === dayName) || {
+          day: dayName,
+          isWorking: dayName !== 'sunday' || (shop?.workingHours?.sunday?.isOpen ?? false),
+          start: '09:00',
+          end: '20:00',
+          breakStart: '13:00',
+          breakEnd: '14:00',
+        };
 
-        const shopDay = shop.workingHours?.[dayName];
-        if (!shopDay || !shopDay.isOpen) return [];
+        // Fallback shop hours
+        const shopDay = shop?.workingHours?.[dayName] || { isOpen: true, open: '09:00', close: '20:00' };
+        if (!shopDay.isOpen && !scheduleDay.isWorking) return [];
 
         const slotSize = 30;
         const slots: string[] = [];
-        let current = timeToMinutes(scheduleDay.start);
-        const end = timeToMinutes(scheduleDay.end) - serviceDuration;
+        const startStr = scheduleDay.start || shopDay.open || '09:00';
+        const endStr = scheduleDay.end || shopDay.close || '20:00';
+
+        let current = timeToMinutes(startStr);
+        const end = timeToMinutes(endStr) - serviceDuration;
         const breakStart = scheduleDay.breakStart ? timeToMinutes(scheduleDay.breakStart) : null;
         const breakEnd = scheduleDay.breakEnd ? timeToMinutes(scheduleDay.breakEnd) : null;
 
@@ -1898,6 +1909,8 @@ ${isAudio ? '🎙️ _Nota de voz procesada con IA_' : '💬 _Mensaje procesado 
           }
           current += slotSize;
         }
+
+        // If today has passed all slots, return empty for today, but next days will have full slots
         return slots;
       },
 

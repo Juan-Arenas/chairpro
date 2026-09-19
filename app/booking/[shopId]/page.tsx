@@ -135,21 +135,51 @@ export default function ClientBookingPage() {
 
   // Available slots for selected barber and date
   const availableSlots = useMemo(() => {
-    if (!selectedBarberId || !selectedDate || !selectedService) return [];
-    if (selectedBarberId === 'any') {
-      const firstBarber = shopBarbers[0];
-      if (!firstBarber) return [];
-      return getAvailableSlots(firstBarber.id, selectedDate, selectedService.duration);
+    if (!selectedDate || !selectedService) return [];
+    
+    // If 'any' barber is selected (or none explicitly chosen)
+    if (selectedBarberId === 'any' || !selectedBarberId) {
+      const slotsSet = new Set<string>();
+      const activeBarbers = shopBarbers.length > 0 ? shopBarbers : [{ id: 'barber_carlos' } as any];
+      
+      activeBarbers.forEach((b: any) => {
+        const bSlots = getAvailableSlots(b.id, selectedDate, selectedService.duration);
+        bSlots.forEach((s: string) => slotsSet.add(s));
+      });
+      
+      const sorted = Array.from(slotsSet).sort();
+      if (sorted.length > 0) return sorted;
+
+      // Fallback slots if today is not in the past
+      const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+      if (!isToday) {
+        return ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00'];
+      }
+      return [];
     }
-    return getAvailableSlots(selectedBarberId, selectedDate, selectedService.duration);
+
+    // Specific barber selected
+    const slots = getAvailableSlots(selectedBarberId, selectedDate, selectedService.duration);
+    if (slots.length > 0) return slots;
+
+    const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+    if (!isToday) {
+      return ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+    }
+    return [];
   }, [selectedBarberId, selectedDate, selectedService, shopBarbers, getAvailableSlots]);
 
   const handleConfirmBooking = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService || !selectedTime || !clientName || !clientPhone || !shop) return;
 
-    // Resolve barber if 'any' was selected
-    const barberIdToAssign = selectedBarberId === 'any' ? shopBarbers[0]?.id : selectedBarberId;
+    // Resolve barber if 'any' was selected: pick the first barber free at that specific slot
+    const barberIdToAssign = (selectedBarberId === 'any' || !selectedBarberId)
+      ? (shopBarbers.find(b => {
+          const bSlots = getAvailableSlots(b.id, selectedDate, selectedService.duration);
+          return bSlots.includes(selectedTime);
+        })?.id || shopBarbers[0]?.id)
+      : selectedBarberId;
     const barberObj = shopBarbers.find((b) => b.id === barberIdToAssign) || shopBarbers[0];
 
     // Find or create client
@@ -577,8 +607,38 @@ export default function ClientBookingPage() {
                 <div>
                   <label className="text-xs font-semibold text-zinc-400 mb-2 block">Horas disponibles</label>
                   {availableSlots.length === 0 ? (
-                    <div className="p-4 rounded-xl border border-zinc-800 text-center text-xs text-zinc-500">
-                      No hay turnos libres para esta fecha. Prueba seleccionando otro día.
+                    <div className="p-4 rounded-xl border border-zinc-800 text-center space-y-3 bg-zinc-950/50">
+                      <div className="text-xs text-zinc-400">
+                        {selectedDate === format(new Date(), 'yyyy-MM-dd')
+                          ? '⏰ Por la hora actual ya no quedan turnos disponibles hoy.'
+                          : 'No hay turnos libres con este barbero para esta fecha.'}
+                      </div>
+                      <div className="flex flex-wrap justify-center gap-2 pt-1">
+                        {selectedDate === format(new Date(), 'yyyy-MM-dd') && availableDates[1] && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDate(availableDates[1].dateStr);
+                              setSelectedTime('');
+                            }}
+                            className="btn-primary text-xs py-1.5 px-3 bg-violet-600 hover:bg-violet-500 font-semibold"
+                          >
+                            👉 Ver turnos para mañana ({availableDates[1].dayName} {availableDates[1].dayNum})
+                          </button>
+                        )}
+                        {selectedBarberId !== 'any' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedBarberId('any');
+                              setSelectedTime('');
+                            }}
+                            className="btn-secondary text-xs py-1.5 px-3"
+                          >
+                            Ver cualquier barbero disponible
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
@@ -794,8 +854,9 @@ export default function ClientBookingPage() {
                     </div>
                     <div className="bg-white p-1.5 rounded-lg shrink-0">
                       <QRCodeCanvas
-                        value={`martiarenas://appointment/${confirmedAppt.appt?.id || 'demo'}`}
+                        value={typeof window !== 'undefined' ? `${window.location.origin}/booking/${shopSlug}?ticket=${confirmedAppt.appt?.id || 'confirmed'}` : `https://chairpro.app/booking/${shopSlug}`}
                         size={64}
+                        level="M"
                       />
                     </div>
                   </div>
