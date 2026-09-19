@@ -473,6 +473,104 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Section 4: Modular Feature Toggles & Data Management */}
+        <div className="card p-5 border-zinc-800 space-y-4">
+          <h2 className="text-sm font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-2">
+            <Settings className="w-4 h-4 text-violet-400" />
+            4. Activar / Inactivar Módulos & Mantenimiento de Datos
+          </h2>
+          <p className="text-xs text-zinc-400">
+            Apaga los módulos que tu barbería no utilice para simplificar la barra lateral o limpia los datos de prueba cuando estés listo para atender clientes reales.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            {[
+              { key: 'enableWhatsApp', label: '📱 WhatsApp Real (Meta API)', desc: 'Webhooks y mensajería oficial' },
+              { key: 'enableClientBot', label: '🤖 Chatbot IA para Clientes', desc: 'Atención automática 24/7' },
+              { key: 'enableBarberBot', label: '🎙️ Registro de Voz Barberos', desc: 'Audio a texto con IA' },
+              { key: 'enableQueue', label: '🔘 Turnero Digital en Vivo', desc: 'Pantalla de turnos y modo TV' },
+              { key: 'enableAutomations', label: '💎 Automatizaciones SaaS', desc: 'Flujos automáticos de marketing' },
+              { key: 'enableDailyCloseWhatsApp', label: '📊 Cierre Diario 9:00 PM', desc: 'Reporte al WhatsApp del dueño' },
+              { key: 'enableNoShow', label: '🛡️ Control Anti No-Show', desc: 'Confirmación de citas 1-clic' },
+              { key: 'enableLoyalty', label: '🏆 Club de Fidelización', desc: 'Puntos por corte y premios' },
+              { key: 'enableInventory', label: '📦 Inventario & Productos', desc: 'Venta de ceras e insumos' },
+              { key: 'enableCommissions', label: '💳 Liquidación Comisiones', desc: 'Porcentajes de ganancia barberos' },
+            ].map(mod => {
+              const currentVal = (targetShop?.settings as any)?.[mod.key] ?? true;
+              return (
+                <div key={mod.key} className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-800 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-zinc-200 truncate">{mod.label}</div>
+                    <div className="text-[11px] text-zinc-500 truncate">{mod.desc}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => useStore.getState().toggleFeatureToggle(mod.key)}
+                    className={`w-10 h-5 rounded-full transition-colors relative shrink-0 p-0.5 ${
+                      currentVal ? 'bg-emerald-600' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                        currentVal ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Data Reset Action Buttons */}
+          <div className="pt-4 border-t border-zinc-800/80 space-y-2">
+            <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+              🧹 Reinicio y Limpieza de Datos
+            </h3>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('¿Restaurar todos los datos de prueba para presentaciones?')) {
+                    useStore.getState().resetDemoData();
+                    alert('✅ Datos de demostración restaurados con éxito.');
+                  }
+                }}
+                className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 hover:border-violet-500/50"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-violet-400" />
+                <span>Restaurar Datos Demo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('¿Limpiar todas las citas y transacciones de prueba para empezar a facturar de verdad?')) {
+                    useStore.getState().clearAppointmentsAndTransactions();
+                    alert('🗑️ Citas y transacciones limpiadas a $0.');
+                  }
+                }}
+                className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 hover:border-amber-500/50"
+              >
+                <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+                <span>Limpiar Citas y Finanzas a $0</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('¿Vaciar todo el negocio a blanco para configurar desde cero?')) {
+                    useStore.getState().clearAllBusinessData();
+                    alert('💥 Negocio vaciado a blanco.');
+                  }
+                }}
+                className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 text-red-400 hover:border-red-500/50"
+              >
+                <span>Vaciar Todo a Blanco</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Bottom Save Button */}
         <div className="pt-2 flex justify-end">
           <button

@@ -19,6 +19,8 @@ export function Sidebar() {
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isBarber = currentUser?.role === 'barber';
 
+  const settings = (currentShop?.settings || {}) as any;
+
   // Navigation tailored by Role: SuperAdmin ONLY gets SaaS platform management
   const navSections = isSuperAdmin
     ? [
@@ -34,7 +36,7 @@ export function Sidebar() {
         {
           title: 'Mi Agenda & Turnos',
           items: [
-            { href: '/queue', label: 'Turnero en Vivo', icon: Tv },
+            ...(settings.enableQueue !== false ? [{ href: '/queue', label: 'Turnero en Vivo', icon: Tv }] : []),
             { href: '/calendar', label: 'Mi Calendario', icon: CalendarDays },
             { href: '/appointments', label: 'Mis Citas', icon: Scissors },
           ],
@@ -42,12 +44,12 @@ export function Sidebar() {
         {
           title: 'Mi Rendimiento',
           items: [
-            { href: '/commissions', label: 'Mis Comisiones', icon: Award },
+            ...(settings.enableCommissions !== false ? [{ href: '/commissions', label: 'Mis Comisiones', icon: Award }] : []),
             { href: '/clients', label: 'Mis Clientes', icon: Users },
             { href: '/barbers', label: 'Mi Perfil & Horario', icon: Star },
           ],
         },
-      ]
+      ].filter(section => section.items.length > 0)
     : [
         {
           title: 'Plataforma Global',
@@ -59,7 +61,7 @@ export function Sidebar() {
           title: 'Principal',
           items: [
             { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { href: '/queue', label: 'Turnero en Vivo', icon: Tv },
+            ...(settings.enableQueue !== false ? [{ href: '/queue', label: 'Turnero en Vivo', icon: Tv }] : []),
             { href: '/calendar', label: 'Calendario', icon: CalendarDays },
             { href: '/appointments', label: 'Citas', icon: Scissors },
           ],
@@ -76,24 +78,24 @@ export function Sidebar() {
           title: 'Negocio',
           items: [
             { href: '/products', label: 'Productos', icon: ShoppingBag },
-            { href: '/inventory', label: 'Inventario', icon: Archive },
+            ...(settings.enableInventory !== false ? [{ href: '/inventory', label: 'Inventario', icon: Archive }] : []),
             { href: '/finances', label: 'Finanzas', icon: DollarSign },
-            { href: '/commissions', label: 'Comisiones', icon: Award },
+            ...(settings.enableCommissions !== false ? [{ href: '/commissions', label: 'Comisiones', icon: Award }] : []),
           ],
         },
         {
           title: 'Automatización',
           items: [
-            { href: '/whatsapp', label: '📱 WhatsApp Real (Meta API)', icon: MessageCircle },
-            { href: '/automations', label: 'Automatizaciones', icon: Zap },
+            ...(settings.enableWhatsApp !== false ? [{ href: '/whatsapp', label: '📱 WhatsApp Real (Meta API)', icon: MessageCircle }] : []),
+            ...(settings.enableAutomations !== false ? [{ href: '/automations', label: 'Automatizaciones', icon: Zap }] : []),
           ],
         },
         {
           title: 'Clientes',
           items: [
-            { href: '/loyalty', label: 'Fidelización', icon: Star },
-            { href: '/noshow', label: 'No Show', icon: UserX },
-            { href: '/qr', label: 'Códigos QR', icon: QrCode },
+            ...(settings.enableLoyalty !== false ? [{ href: '/loyalty', label: 'Fidelización', icon: Star }] : []),
+            ...(settings.enableNoShow !== false ? [{ href: '/noshow', label: 'No Show', icon: UserX }] : []),
+            ...(settings.allowOnlineBooking !== false ? [{ href: '/qr', label: 'Códigos QR', icon: QrCode }] : []),
           ],
         },
         {
@@ -104,7 +106,7 @@ export function Sidebar() {
             { href: '/settings', label: 'Configuración', icon: Settings },
           ],
         },
-      ];
+      ].filter(section => section.items.length > 0);
 
   const primaryColor = isSuperAdmin ? '#f59e0b' : (currentShop?.theme?.primaryColor || '#7c3aed');
   const logoEmoji = isSuperAdmin ? '👑' : (currentShop?.theme?.logoUrl || '✂️');

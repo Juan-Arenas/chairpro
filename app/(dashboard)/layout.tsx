@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/shared/Sidebar';
 import { TopBar } from '@/components/shared/TopBar';
 import { MobileNav } from '@/components/shared/MobileNav';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
+import { QuickControlFab } from '@/components/shared/QuickControlFab';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, mode, initializeDemo, initializeLive, isInitialized } = useStore();
@@ -89,12 +90,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Mode indicator */}
         {mode === 'demo' && (
-          <div className="fixed bottom-4 right-4 z-50 lg:bottom-6 lg:right-6 pointer-events-none">
+          <div className="fixed bottom-4 left-4 z-30 lg:bottom-6 lg:left-6 pointer-events-none">
             <div className="bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md shadow-lg">
               🎭 MODO DEMO
             </div>
           </div>
         )}
+
+        {/* Floating Quick Control FAB */}
+        <QuickControlFab />
       </div>
     </ThemeProvider>
   );

@@ -205,6 +205,13 @@ interface ChairProStore {
   // ── Automation Actions ─────────────────────────────────────────
   toggleAutomation: (id: string) => void;
 
+  // ── Modular Feature Toggles & Data Management ─────────────────
+  toggleFeatureToggle: (key: string, value?: boolean) => void;
+  resetDemoData: () => void;
+  clearAppointmentsAndTransactions: () => void;
+  clearWhatsAppMessages: () => void;
+  clearAllBusinessData: () => void;
+
   // ── Computed ──────────────────────────────────────────────────
   getKPIs: () => DashboardKPIs;
   getAvailableSlots: (barberId: BarberId, date: string, serviceDuration: number) => string[];
@@ -1756,6 +1763,70 @@ ${isAudio ? '🎙️ _Nota de voz procesada con IA_' : '💬 _Mensaje procesado 
         set((s) => ({
           automations: s.automations.map((a) => (a.id === id ? { ...a, isActive: !a.isActive } : a)),
         }));
+      },
+
+      // ── Modular Feature Toggles & Data Management ─────────────
+      toggleFeatureToggle: (key: string, value?: boolean) => {
+        const state = get();
+        if (!state.currentShop) return;
+        const currentSettings = state.currentShop.settings || {};
+        const newVal = value !== undefined ? value : !(currentSettings as any)[key];
+        const updatedShop = {
+          ...state.currentShop,
+          settings: {
+            ...currentSettings,
+            [key]: newVal,
+          },
+        };
+        set((s) => ({
+          currentShop: updatedShop,
+          shops: s.shops.map((shop) => (shop.id === updatedShop.id ? updatedShop : shop)),
+        }));
+      },
+
+      resetDemoData: () => {
+        set({
+          shops: demoShops,
+          users: demoUsers,
+          currentShop: demoBarbershop,
+          saasPayments: demoSaasPayments,
+          barbers: demoBarbers,
+          clients: demoClients,
+          services: demoServices,
+          products: demoProducts,
+          appointments: demoAppointments,
+          transactions: demoTransactions,
+          notifications: demoNotifications,
+          automations: demoAutomations,
+          whatsappMessages: [],
+          inventoryMovements: [],
+          isInitialized: true,
+        });
+      },
+
+      clearAppointmentsAndTransactions: () => {
+        set({
+          appointments: [],
+          transactions: [],
+          whatsappMessages: [],
+        });
+      },
+
+      clearWhatsAppMessages: () => {
+        set({
+          whatsappMessages: [],
+        });
+      },
+
+      clearAllBusinessData: () => {
+        set({
+          appointments: [],
+          transactions: [],
+          clients: [],
+          whatsappMessages: [],
+          notifications: [],
+          inventoryMovements: [],
+        });
       },
 
       // ── Computed ──────────────────────────────────────────────
