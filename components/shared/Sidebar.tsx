@@ -34,7 +34,6 @@ export function Sidebar() {
         {
           title: 'Mi Agenda & Turnos',
           items: [
-            { href: '/whatsapp', label: 'Bot WhatsApp (Voz)', icon: MessageCircle },
             { href: '/queue', label: 'Turnero en Vivo', icon: Tv },
             { href: '/calendar', label: 'Mi Calendario', icon: CalendarDays },
             { href: '/appointments', label: 'Mis Citas', icon: Scissors },
@@ -83,11 +82,10 @@ export function Sidebar() {
           ],
         },
         {
-          title: 'Automatización & IA',
+          title: 'Automatización',
           items: [
-            { href: '/whatsapp', label: '📱 Centro WhatsApp & IA', icon: MessageCircle },
+            { href: '/whatsapp', label: '📱 WhatsApp Real (Meta API)', icon: MessageCircle },
             { href: '/automations', label: 'Automatizaciones', icon: Zap },
-            { href: '/assistant', label: 'Asistente IA & Trainer', icon: MessageSquare },
           ],
         },
         {

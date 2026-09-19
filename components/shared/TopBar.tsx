@@ -23,8 +23,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/noshow': 'Control y Prevención No-Show',
   '/stats': 'Estadísticas & KPIs',
   '/qr': 'Generador de Códigos QR',
-  '/automations': 'Flujos y Automatizaciones',
-  '/assistant': 'Asistente de IA',
+  '/queue': 'Turnero Digital en Vivo',
+  '/whatsapp': 'WhatsApp Meta Cloud API (Oficial)',
+  '/automations': 'Automatizaciones & Marketing WhatsApp',
   '/settings': 'Configuración de la Barbería',
 };
 
