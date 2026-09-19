@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import {
   QrCode, Download, ExternalLink, Smartphone, Printer,
