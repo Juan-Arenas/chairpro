@@ -41,6 +41,7 @@ export default function QRStudioPage() {
   // Payment Sub-options
   const [paymentPhone, setPaymentPhone] = useState(currentShop?.phone || '3001234567');
   const [paymentProvider, setPaymentProvider] = useState<'nequi' | 'daviplata' | 'bancolombia'>('nequi');
+  const [copiedUrl, setCopiedUrl] = useState(false);
 
   const effectiveBarberId = selectedBarberId || barbers[0]?.id || 'barber_carlos';
   const effectiveServiceId = selectedServiceId || services[0]?.id || 'svc_1';
