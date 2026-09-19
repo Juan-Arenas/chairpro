@@ -70,6 +70,13 @@ export interface Barbershop {
     rewardDescription: string;
     currency: string;
     currencySymbol: string;
+    enableClientBot?: boolean;
+    enableBarberBot?: boolean;
+    enableGoogleMapsReview?: boolean;
+    googleMapsUrl?: string;
+    enableDailyCloseWhatsApp?: boolean;
+    dailyClosePhone?: string;
+    enableReminders?: boolean;
   };
   plan: 'trial' | 'basic' | 'pro' | 'enterprise';
   createdAt: string;
@@ -101,6 +108,8 @@ export interface SaaSPlatformKPIs {
 }
 
 // ── Barber ────────────────────────────────────────────────────────────────────
+export type BarberStatus = 'available' | 'busy' | 'break' | 'off';
+
 export interface BarberScheduleDay {
   day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
   isWorking: boolean;
@@ -124,6 +133,8 @@ export interface Barber {
   serviceIds: ServiceId[];
   joinedAt: string;
   isActive: boolean;
+  status?: BarberStatus;
+  statusUpdatedAt?: string;
   preferredBarberId?: never;
 }
 
@@ -155,6 +166,8 @@ export interface Client {
   registeredAt: string;
   tags: ClientTag[];
   loyalty: { points: number; visits: number };
+  googleReviewSent?: boolean;
+  googleReviewSentAt?: string;
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -302,3 +315,112 @@ export interface DashboardKPIs {
   pendingAppointments: number;
   lowStockProducts: number;
 }
+
+// ── WhatsApp & AI Automation Types ────────────────────────────────────────────
+export type WhatsAppMessageType = 'text' | 'audio' | 'interactive' | 'button_reply' | 'template';
+export type WhatsAppDirection = 'inbound' | 'outbound';
+
+export interface WhatsAppMessage {
+  id: string;
+  shopId: ShopId;
+  direction: WhatsAppDirection;
+  from: string; // phone number
+  to: string; // phone number
+  type: WhatsAppMessageType;
+  content: string;
+  audioUrl?: string;
+  audioDurationSeconds?: number;
+  transcription?: string;
+  senderRole: 'barber' | 'client' | 'bot' | 'system';
+  senderName?: string;
+  barberId?: BarberId;
+  clientId?: ClientId;
+  timestamp: string;
+  status: 'sent' | 'delivered' | 'read' | 'processed';
+  metadata?: Record<string, any>;
+}
+
+export interface ParsedBarberAction {
+  actionType: 'register_service' | 'change_status' | 'check_wallet' | 'query' | 'unknown';
+  barberId?: BarberId;
+  barberName?: string;
+  serviceId?: ServiceId;
+  serviceName?: string;
+  price: number;
+  paymentMethod: PaymentMethod;
+  clientName?: string;
+  clientPhone?: string;
+  commissionAmount: number;
+  newStatus?: BarberStatus;
+  productsSold?: { productId: ProductId; productName: string; price: number; quantity: number }[];
+  confidence: number;
+  rawText: string;
+  isAudio?: boolean;
+}
+
+export interface ChatbotKnowledgeItem {
+  id: string;
+  shopId: ShopId;
+  category: 'faq' | 'rules' | 'amenities' | 'promotions' | 'parking' | 'custom';
+  question: string;
+  answer: string;
+  tags: string[];
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface ChatbotConfig {
+  shopId: ShopId;
+  botName: string;
+  tone: 'urbano' | 'profesional' | 'casual' | 'premium';
+  systemPrompt: string;
+  welcomeMessage: string;
+  fallbackMessage: string;
+  autoBookingEnabled: boolean;
+  notifyBarberOnBooking: boolean;
+  cancellationNoticeHours: number;
+  customFaqs: ChatbotKnowledgeItem[];
+}
+
+export interface BarberQueueItem {
+  barberId: BarberId;
+  barberName: string;
+  avatarColor: string;
+  status: BarberStatus;
+  statusUpdatedAt: string;
+  currentAppointmentId?: AppointmentId;
+  currentClientName?: string;
+  currentServiceName?: string;
+  startedAt?: string;
+  estimatedEndAt?: string;
+  remainingMinutes?: number;
+  dailyServicesCount: number;
+  dailyEarnings: number;
+}
+
+export interface DailyCloseReport {
+  id: string;
+  shopId: ShopId;
+  date: string;
+  totalRevenue: number;
+  cashInDrawer: number;
+  nequiAmount: number;
+  daviplataAmount: number;
+  cardAmount: number;
+  transferAmount: number;
+  totalServicesCount: number;
+  totalProductsCount: number;
+  totalCommissionsAmount: number;
+  netShopProfit: number;
+  barbersBreakdown: {
+    barberId: BarberId;
+    barberName: string;
+    servicesCount: number;
+    totalEarned: number;
+    commissionAmount: number;
+  }[];
+  generatedAt: string;
+  sentToWhatsApp: boolean;
+  recipientPhone?: string;
+}
+

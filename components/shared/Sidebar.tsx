@@ -8,7 +8,7 @@ import {
   LayoutDashboard, CalendarDays, Users, Scissors,
   BarChart3, Settings, LogOut, QrCode, Zap, MessageSquare,
   DollarSign, ShoppingBag, Archive, Star, UserX, Award, ChevronLeft,
-  Palette, Building2
+  Palette, Building2, Tv, MessageCircle
 } from 'lucide-react';
 import { ShopLogo } from '@/components/shared/ShopLogo';
 
@@ -32,8 +32,10 @@ export function Sidebar() {
     : isBarber
     ? [
         {
-          title: 'Mi Agenda',
+          title: 'Mi Agenda & Turnos',
           items: [
+            { href: '/whatsapp', label: 'Bot WhatsApp (Voz)', icon: MessageCircle },
+            { href: '/queue', label: 'Turnero en Vivo', icon: Tv },
             { href: '/calendar', label: 'Mi Calendario', icon: CalendarDays },
             { href: '/appointments', label: 'Mis Citas', icon: Scissors },
           ],
@@ -58,6 +60,7 @@ export function Sidebar() {
           title: 'Principal',
           items: [
             { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { href: '/queue', label: 'Turnero en Vivo', icon: Tv },
             { href: '/calendar', label: 'Calendario', icon: CalendarDays },
             { href: '/appointments', label: 'Citas', icon: Scissors },
           ],
@@ -80,6 +83,14 @@ export function Sidebar() {
           ],
         },
         {
+          title: 'Automatización & IA',
+          items: [
+            { href: '/whatsapp', label: '📱 Centro WhatsApp & IA', icon: MessageCircle },
+            { href: '/automations', label: 'Automatizaciones', icon: Zap },
+            { href: '/assistant', label: 'Asistente IA & Trainer', icon: MessageSquare },
+          ],
+        },
+        {
           title: 'Clientes',
           items: [
             { href: '/loyalty', label: 'Fidelización', icon: Star },
@@ -88,16 +99,9 @@ export function Sidebar() {
           ],
         },
         {
-          title: 'Analytics & IA',
+          title: 'Analytics & Identidad',
           items: [
             { href: '/stats', label: 'Estadísticas', icon: BarChart3 },
-            { href: '/automations', label: 'Automatizaciones', icon: Zap },
-            { href: '/assistant', label: 'Asistente IA', icon: MessageSquare },
-          ],
-        },
-        {
-          title: 'Identidad & Configuración',
-          items: [
             { href: '/branding', label: 'Personalizar Marca', icon: Palette },
             { href: '/settings', label: 'Configuración', icon: Settings },
           ],

@@ -88,6 +88,8 @@ function mapRowToBarber(row: any): Barber {
     serviceIds: row.service_ids || [],
     joinedAt: row.joined_at || row.created_at,
     isActive: row.is_active,
+    status: row.status || 'available',
+    statusUpdatedAt: row.status_updated_at,
   };
 }
 
@@ -108,6 +110,8 @@ function mapRowToClient(row: any): Client {
     tags: row.tags || ['new'],
     lastVisitAt: row.last_visit_at,
     registeredAt: row.registered_at,
+    googleReviewSent: row.google_review_sent || false,
+    googleReviewSentAt: row.google_review_sent_at,
   };
 }
 

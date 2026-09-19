@@ -8,7 +8,9 @@ import {
   InventoryMovement, AppointmentId, BarberId, ClientId,
   ProductId, ServiceId, DashboardKPIs, BarberStats,
   ShopTheme, UserRole, SaaSPlatformKPIs, SaasPayment,
-  SubscriptionStatus
+  SubscriptionStatus, BarberStatus, WhatsAppMessage,
+  ParsedBarberAction, ChatbotKnowledgeItem, ChatbotConfig,
+  BarberQueueItem, DailyCloseReport
 } from '@/types';
 import {
   demoBarbershop, demoUsers, demoBarbers, demoClients,
@@ -20,6 +22,15 @@ import {
   generateId, getDayName, timeToMinutes, minutesToTime
 } from '@/lib/utils';
 import { format, addDays } from 'date-fns';
+import { parseBarberMessage } from '@/lib/whatsapp/parser';
+import { processCustomerMessage } from '@/lib/whatsapp/chatbot';
+import {
+  calculateDailyCloseReport,
+  formatDailyCloseWhatsAppMessage,
+  formatAntiNoShowReminder,
+  formatGoogleReviewBooster,
+  formatWinBackMessage
+} from '@/lib/whatsapp/automations';
 
 // Supabase imports
 import { createClient } from '@/lib/supabase/client';
@@ -30,6 +41,59 @@ import * as db from '@/lib/supabase/queries';
 // ═══════════════════════════════════════════════════════════════
 
 type StoreMode = 'demo' | 'live';
+
+export const defaultChatbotKnowledge: ChatbotKnowledgeItem[] = [
+  {
+    id: 'kb_1',
+    shopId: 'shop_demo',
+    category: 'parking',
+    question: '¿Tienen parqueadero disponible?',
+    answer: 'Sí, contamos con parqueadero gratuito para clientes durante la primera hora justo al lado del local.',
+    tags: ['parqueadero', 'estacionamiento', 'carro', 'moto'],
+    isActive: true,
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'kb_2',
+    shopId: 'shop_demo',
+    category: 'amenities',
+    question: '¿Ofrecen bebidas o comodidades?',
+    answer: '¡Por supuesto! Con cada servicio tienes incluida cerveza artesanal, café premium o agua mineral de cortesía, además de WiFi de alta velocidad y PlayStation 5 en la sala de espera.',
+    tags: ['cerveza', 'cafe', 'bebida', 'wifi', 'cortesia'],
+    isActive: true,
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'kb_3',
+    shopId: 'shop_demo',
+    category: 'rules',
+    question: '¿Atienden a niños?',
+    answer: 'Sí, atendemos a niños de todas las edades con barberos especializados en cortes modernos y diseño.',
+    tags: ['niños', 'ninos', 'hijos', 'infantil'],
+    isActive: true,
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'kb_4',
+    shopId: 'shop_demo',
+    category: 'rules',
+    question: '¿Aceptan mascotas (Pet Friendly)?',
+    answer: '¡Sí! Somos 100% Pet Friendly. Tu mascota es bienvenida.',
+    tags: ['mascotas', 'perros', 'pet friendly', 'perro'],
+    isActive: true,
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'kb_5',
+    shopId: 'shop_demo',
+    category: 'promotions',
+    question: '¿Qué promociones tienen activas?',
+    answer: 'Los días martes y miércoles tenemos 15% de descuento en Combo Corte + Barba Spa.',
+    tags: ['promocion', 'descuento', 'oferta', 'martes', 'miercoles'],
+    isActive: true,
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 interface ChairProStore {
   // ── Mode ───────────────────────────────────────────────────────
@@ -55,17 +119,25 @@ interface ChairProStore {
   notifications: Notification[];
   automations: Automation[];
   inventoryMovements: InventoryMovement[];
+  whatsappMessages: WhatsAppMessage[];
+  chatbotKnowledge: ChatbotKnowledgeItem[];
+  chatbotConfig: ChatbotConfig | null;
+  dailyCloseReports: DailyCloseReport[];
 
   // ── UI ────────────────────────────────────────────────────────
   activeView: string;
   sidebarOpen: boolean;
   isLoading: boolean;
 
-  // ── Tenant & Role Actions ─────────────────────────────────────
+  // ── Actions ───────────────────────────────────────────────────
+  initializeDemo: () => void;
+  initializeLive: (authId: string) => Promise<void>;
+  loadShopData: (shopId: string) => Promise<void>;
   switchShop: (shopId: string) => void;
   switchRole: (role: UserRole, barberId?: string) => void;
   updateShopBranding: (shopId: string, branding: Partial<ShopTheme & { name?: string; logoUrl?: string; address?: string; phone?: string }>) => void;
   updateShopSettings: (shopId: string, settings: Partial<Barbershop>) => Promise<void>;
+  updateShopAutomationSettings: (settings: Partial<Barbershop['settings']>) => Promise<void>;
   createShop: (data: { name: string; slug: string; ownerEmail: string; ownerName: string; city: string; plan?: 'basic' | 'pro' | 'enterprise'; primaryColor?: string }) => Promise<Barbershop | null>;
   toggleShopStatus: (shopId: string) => void;
   recordMonthlyPayment: (data: { tenantId: string; amount: number; paymentMethod: SaasPayment['paymentMethod']; date?: string; billingPeriodStart?: string; billingPeriodEnd?: string; reference?: string; notes?: string; autoExtendDays?: number }) => Promise<SaasPayment | null>;
@@ -73,9 +145,6 @@ interface ChairProStore {
   getSaaSPlatformKPIs: () => SaaSPlatformKPIs;
 
   // ── Auth Actions ──────────────────────────────────────────────
-  initializeDemo: () => void;
-  initializeLive: (authId: string) => Promise<void>;
-  loadShopData: (shopId: string) => Promise<void>;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithSupabase: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -100,6 +169,19 @@ interface ChairProStore {
   createBarber: (data: Omit<Barber, 'id' | 'shopId'>) => Barber;
   updateBarber: (id: BarberId, data: Partial<Barber>) => void;
   toggleBarberActive: (id: BarberId) => void;
+  setBarberStatus: (id: BarberId, status: BarberStatus) => void;
+
+  // ── WhatsApp & Automation Engine ──────────────────────────────
+  processBarberWhatsAppMessage: (phoneOrBarberId: string, messageText: string, isAudio?: boolean) => { success: boolean; reply: string; actionType?: string; data?: any };
+  processClientWhatsAppMessage: (phone: string, clientName: string, messageText: string) => { success: boolean; reply: string; actionType?: string; appointment?: any; buttons?: any[] };
+  sendDailyCashCloseWhatsApp: (dateStr?: string) => { summary: string; targetPhone: string; closingHour: string; report: DailyCloseReport };
+  addWhatsAppMessage: (msg: Omit<WhatsAppMessage, 'id' | 'timestamp'>) => WhatsAppMessage;
+  
+  // ── Knowledge Base Actions ────────────────────────────────────
+  addKnowledgeItem: (item: Omit<ChatbotKnowledgeItem, 'id' | 'shopId' | 'updatedAt'>) => ChatbotKnowledgeItem;
+  updateKnowledgeItem: (id: string, updates: Partial<ChatbotKnowledgeItem>) => void;
+  deleteKnowledgeItem: (id: string) => void;
+  updateChatbotConfig: (updates: Partial<ChatbotConfig>) => void;
 
   // ── Service Actions ────────────────────────────────────────────
   createService: (data: Omit<Service, 'id' | 'shopId'>) => Service;
@@ -127,6 +209,7 @@ interface ChairProStore {
   getKPIs: () => DashboardKPIs;
   getAvailableSlots: (barberId: BarberId, date: string, serviceDuration: number) => string[];
   getBarberStats: (barberId: BarberId) => BarberStats;
+  getBarberQueue: () => BarberQueueItem[];
   getClientAppointments: (clientId: ClientId) => Appointment[];
   getInactiveClients: (daysSince: number) => Client[];
   getUnreadCount: () => number;
@@ -153,6 +236,21 @@ export const useStore = create<ChairProStore>()(
       notifications: [],
       automations: [],
       inventoryMovements: [],
+      whatsappMessages: [],
+      chatbotKnowledge: defaultChatbotKnowledge,
+      chatbotConfig: {
+        shopId: 'shop_demo',
+        botName: 'Asistente Virtual ChairPro',
+        tone: 'profesional',
+        systemPrompt: 'Eres el asistente inteligente oficial de la barbería.',
+        welcomeMessage: '¡Hola! Bienvenido a nuestra barbería. ¿En qué te puedo ayudar hoy?',
+        fallbackMessage: 'Disculpa, no entendí tu solicitud. Puedes preguntarme por precios, horarios o agendar tu cita.',
+        autoBookingEnabled: true,
+        notifyBarberOnBooking: true,
+        cancellationNoticeHours: 2,
+        customFaqs: defaultChatbotKnowledge,
+      },
+      dailyCloseReports: [],
       activeView: 'dashboard',
       sidebarOpen: true,
       isLoading: false,
@@ -425,6 +523,17 @@ export const useStore = create<ChairProStore>()(
         if (get().mode === 'live') {
           await db.updateTenantSettings(shopId, settingsData);
         }
+      },
+
+      updateShopAutomationSettings: async (settings) => {
+        const currentShop = get().currentShop;
+        if (!currentShop) return;
+        await get().updateShopSettings(currentShop.id, {
+          settings: {
+            ...currentShop.settings,
+            ...settings,
+          },
+        });
       },
 
       createShop: async (data) => {
@@ -1049,6 +1158,392 @@ export const useStore = create<ChairProStore>()(
         if (get().mode === 'live' && barber) {
           db.updateBarberData(id, { isActive: !barber.isActive });
         }
+      },
+
+      setBarberStatus: (id, status) => {
+        const now = new Date().toISOString();
+        set((s) => ({
+          barbers: s.barbers.map((b) => (b.id === id ? { ...b, status, statusUpdatedAt: now } : b)),
+        }));
+      },
+
+      addWhatsAppMessage: (msg) => {
+        const newMsg: WhatsAppMessage = {
+          ...msg,
+          id: generateId('wmsg'),
+          timestamp: new Date().toISOString(),
+        };
+        set((s) => ({ whatsappMessages: [newMsg, ...s.whatsappMessages] }));
+        return newMsg;
+      },
+
+      processBarberWhatsAppMessage: (phoneOrBarberId, messageText, isAudio = false) => {
+        const state = get();
+        const currentShop = state.currentShop || state.shops[0] || demoBarbershop;
+        const barbers = state.barbers.filter(b => b.shopId === currentShop.id);
+        const currentBarber = barbers.find(b => b.id === phoneOrBarberId || b.phone === phoneOrBarberId) || barbers[0];
+
+        // 1. Parse natural language message/audio
+        const parsed = parseBarberMessage(messageText, {
+          services: state.services.filter(s => s.shopId === currentShop.id),
+          products: state.products.filter(p => p.shopId === currentShop.id),
+          barbers,
+          currentBarber,
+          isAudio,
+        });
+
+        // 2. Handle Status Change
+        if (parsed.actionType === 'change_status' && parsed.newStatus && currentBarber) {
+          get().setBarberStatus(currentBarber.id, parsed.newStatus);
+          const statusLabels: Record<string, string> = {
+            available: '🟢 Disponible para atender',
+            busy: '🟡 En turno / Ocupado',
+            break: '☕ En descanso / Almuerzo',
+            off: '🔴 Fuera de turno / Libre',
+          };
+          const reply = `💈 *Estado actualizado*\n\nHola ${currentBarber.name.split(' ')[0]}, tu estado ahora es: *${statusLabels[parsed.newStatus]}*.`;
+          
+          get().addWhatsAppMessage({
+            shopId: currentShop.id,
+            direction: 'inbound',
+            from: currentBarber.phone || '+573000000000',
+            to: currentShop.whatsapp || '+573160000000',
+            type: isAudio ? 'audio' : 'text',
+            content: messageText,
+            transcription: isAudio ? messageText : undefined,
+            senderRole: 'barber',
+            senderName: currentBarber.name,
+            barberId: currentBarber.id,
+            status: 'processed',
+          });
+
+          get().addWhatsAppMessage({
+            shopId: currentShop.id,
+            direction: 'outbound',
+            from: currentShop.whatsapp || '+573160000000',
+            to: currentBarber.phone || '+573000000000',
+            type: 'text',
+            content: reply,
+            senderRole: 'system',
+            barberId: currentBarber.id,
+            status: 'sent',
+          });
+
+          return { success: true, reply, actionType: 'change_status', data: { newStatus: parsed.newStatus } };
+        }
+
+        // 3. Handle Wallet / Earnings Query
+        if (parsed.actionType === 'check_wallet' && currentBarber) {
+          const today = format(new Date(), 'yyyy-MM-dd');
+          const barberAppts = state.appointments.filter(
+            a => a.barberId === currentBarber.id && a.date === today && a.status === 'completed'
+          );
+          const totalEarned = barberAppts.reduce((sum, a) => sum + a.price, 0);
+          const totalCommission = Math.round(totalEarned * currentBarber.commissionRate);
+
+          const reply = `💰 *Billetera del Barbero — ${currentBarber.name.split(' ')[0]}*\n📅 Hoy (${today})\n\n✂️ Cortes realizados: *${barberAppts.length}*\n💵 Total generado: *$${totalEarned.toLocaleString('es-CO')}*\n🏆 *Tu comisión a cobrar hoy:* *$${totalCommission.toLocaleString('es-CO')}*\n\n¡Gran trabajo! 💪`;
+
+          return { success: true, reply, actionType: 'check_wallet', data: { totalCommission, servicesCount: barberAppts.length } };
+        }
+
+        // 4. Handle Service Registration
+        if (parsed.actionType === 'register_service') {
+          const targetBarber = currentBarber;
+          const targetService = state.services.find(s => s.id === parsed.serviceId) || state.services[0];
+          const todayStr = format(new Date(), 'yyyy-MM-dd');
+          const nowTime = format(new Date(), 'HH:mm');
+
+          // Find or create client if name was mentioned
+          let client = state.clients.find(c => parsed.clientName && c.name.toLowerCase().includes(parsed.clientName.toLowerCase()));
+          if (!client) {
+            client = state.clients[0] || get().createClient({
+              name: parsed.clientName || 'Cliente Mostrador (WhatsApp)',
+              phone: '+57 300 000 0000',
+            });
+          }
+
+          // A. Create Completed Appointment
+          const newAppt: Appointment = {
+            id: generateId('appt'),
+            shopId: currentShop.id,
+            clientId: client.id,
+            barberId: targetBarber.id,
+            serviceId: targetService.id,
+            date: todayStr,
+            startTime: nowTime,
+            endTime: nowTime,
+            status: 'completed',
+            source: 'whatsapp',
+            price: parsed.price,
+            commissionAmount: parsed.commissionAmount,
+            isPaid: true,
+            paymentMethod: parsed.paymentMethod,
+            notes: `Auto-registrado por WhatsApp (${isAudio ? 'Nota de Voz' : 'Texto'}): "${messageText}"`,
+            reminderSent: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          // B. Create Financial Income Transaction
+          const newTx: Transaction = {
+            id: generateId('tx'),
+            shopId: currentShop.id,
+            type: 'income',
+            category: 'service',
+            description: `${targetService.name} - ${targetBarber.name} (${parsed.paymentMethod.toUpperCase()}) [WhatsApp Bot]`,
+            amount: parsed.price,
+            date: todayStr,
+            relatedAppointmentId: newAppt.id,
+            barberId: targetBarber.id,
+            commissionAmount: parsed.commissionAmount,
+            createdBy: targetBarber.id,
+            createdAt: new Date().toISOString(),
+          };
+
+          // C. If products sold, reduce stock & register tx
+          let productsSummary = '';
+          if (parsed.productsSold && parsed.productsSold.length > 0) {
+            for (const item of parsed.productsSold) {
+              get().registerSale(item.productId, item.quantity, client.id);
+              productsSummary += `\n📦 Producto: ${item.productName} ($${item.price.toLocaleString('es-CO')})`;
+            }
+          }
+
+          // D. Update state
+          set((s) => ({
+            appointments: [newAppt, ...s.appointments],
+            transactions: [newTx, ...s.transactions],
+            clients: s.clients.map((c) =>
+              c.id === client.id
+                ? {
+                    ...c,
+                    totalVisits: c.totalVisits + 1,
+                    totalSpent: c.totalSpent + parsed.price,
+                    lastVisitAt: new Date().toISOString(),
+                    loyalty: {
+                      visits: c.loyalty.visits + 1,
+                      points: c.loyalty.points + Math.floor(parsed.price / 1000),
+                    },
+                  }
+                : c
+            ),
+          }));
+
+          // Compute barber's updated daily total
+          const todayBarberAppts = [...state.appointments, newAppt].filter(
+            a => a.barberId === targetBarber.id && a.date === todayStr && a.status === 'completed'
+          );
+          const dailyEarned = todayBarberAppts.reduce((sum, a) => sum + (a.commissionAmount || Math.round(a.price * targetBarber.commissionRate)), 0);
+
+          const methodIcons: Record<string, string> = {
+            nequi: '🟣 Nequi',
+            daviplata: '🔴 Daviplata',
+            cash: '💵 Efectivo',
+            card: '💳 Datáfono/Tarjeta',
+            transfer: '🏦 Transferencia',
+          };
+
+          const reply = `✅ *¡Servicio Registrado Automáticamente!*
+${isAudio ? '🎙️ _Nota de voz procesada con IA_' : '💬 _Mensaje procesado con IA_'}
+
+💈 *Barbero:* ${targetBarber.name}
+✂️ *Servicio:* ${targetService.name}
+💰 *Valor:* $${parsed.price.toLocaleString('es-CO')} COP
+💳 *Método de Pago:* ${methodIcons[parsed.paymentMethod] || parsed.paymentMethod}
+🏆 *Tu Comisión:* $${parsed.commissionAmount.toLocaleString('es-CO')} COP${productsSummary}
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *Tu acumulado de hoy:* *$${dailyEarned.toLocaleString('es-CO')} COP* (${todayBarberAppts.length} servicios)`;
+
+          get().addWhatsAppMessage({
+            shopId: currentShop.id,
+            direction: 'inbound',
+            from: targetBarber.phone || '+573000000000',
+            to: currentShop.whatsapp || '+573160000000',
+            type: isAudio ? 'audio' : 'text',
+            content: messageText,
+            transcription: isAudio ? messageText : undefined,
+            senderRole: 'barber',
+            senderName: targetBarber.name,
+            barberId: targetBarber.id,
+            status: 'processed',
+          });
+
+          get().addWhatsAppMessage({
+            shopId: currentShop.id,
+            direction: 'outbound',
+            from: currentShop.whatsapp || '+573160000000',
+            to: targetBarber.phone || '+573000000000',
+            type: 'text',
+            content: reply,
+            senderRole: 'bot',
+            barberId: targetBarber.id,
+            status: 'sent',
+          });
+
+          get().addNotification({
+            shopId: currentShop.id,
+            type: 'new_appointment',
+            title: `Corte registrado vía WhatsApp (${targetBarber.name})`,
+            message: `${targetService.name} por $${parsed.price.toLocaleString('es-CO')} (${parsed.paymentMethod})`,
+            isRead: false,
+          });
+
+          return {
+            success: true,
+            reply,
+            actionType: 'register_service',
+            data: { appointmentId: newAppt.id, parsed },
+          };
+        }
+
+        return {
+          success: false,
+          reply: 'No se pudo interpretar el servicio. Escribe por ejemplo: "Corte clásico 35 mil nequi".',
+        };
+      },
+
+      processClientWhatsAppMessage: (phone, clientName, messageText) => {
+        const state = get();
+        const currentShop = state.currentShop || state.shops[0] || demoBarbershop;
+        const response = processCustomerMessage(messageText, {
+          shop: currentShop,
+          services: state.services.filter(s => s.shopId === currentShop.id),
+          barbers: state.barbers.filter(b => b.shopId === currentShop.id),
+          appointments: state.appointments.filter(a => a.shopId === currentShop.id),
+          customKnowledge: state.chatbotKnowledge,
+          clientName,
+          clientPhone: phone,
+        });
+
+        get().addWhatsAppMessage({
+          shopId: currentShop.id,
+          direction: 'inbound',
+          from: phone,
+          to: currentShop.whatsapp || '+573160000000',
+          type: 'text',
+          content: messageText,
+          senderRole: 'client',
+          senderName: clientName,
+          status: 'processed',
+        });
+
+        get().addWhatsAppMessage({
+          shopId: currentShop.id,
+          direction: 'outbound',
+          from: currentShop.whatsapp || '+573160000000',
+          to: phone,
+          type: 'text',
+          content: response.replyText,
+          senderRole: 'bot',
+          status: 'sent',
+        });
+
+        return {
+          success: true,
+          reply: response.replyText,
+          actionType: response.actionTaken,
+          buttons: response.suggestedButtons,
+        };
+      },
+
+      sendDailyCashCloseWhatsApp: (dateStr) => {
+        const state = get();
+        const currentShop = state.currentShop || state.shops[0] || demoBarbershop;
+        const targetDate = dateStr || format(new Date(), 'yyyy-MM-dd');
+        const report = calculateDailyCloseReport(
+          currentShop,
+          targetDate,
+          state.appointments.filter(a => a.shopId === currentShop.id),
+          state.transactions.filter(t => t.shopId === currentShop.id),
+          state.barbers.filter(b => b.shopId === currentShop.id)
+        );
+        const message = formatDailyCloseWhatsAppMessage(report, currentShop.name);
+
+        set((s) => ({
+          dailyCloseReports: [report, ...s.dailyCloseReports.filter(r => r.id !== report.id)],
+        }));
+
+        get().addWhatsAppMessage({
+          shopId: currentShop.id,
+          direction: 'outbound',
+          from: currentShop.whatsapp || '+573160000000',
+          to: report.recipientPhone || currentShop.phone || '+573000000000',
+          type: 'text',
+          content: message,
+          senderRole: 'system',
+          status: 'sent',
+        });
+
+        return {
+          summary: message,
+          targetPhone: report.recipientPhone || currentShop.phone,
+          closingHour: format(new Date(), 'HH:mm'),
+          report,
+        };
+      },
+
+      addKnowledgeItem: (item) => {
+        const newItem: ChatbotKnowledgeItem = {
+          ...item,
+          id: generateId('kb'),
+          shopId: get().currentShop?.id || 'shop_demo',
+          updatedAt: new Date().toISOString(),
+        };
+        set((s) => ({ chatbotKnowledge: [...s.chatbotKnowledge, newItem] }));
+        return newItem;
+      },
+
+      updateKnowledgeItem: (id, updates) => {
+        set((s) => ({
+          chatbotKnowledge: s.chatbotKnowledge.map((k) =>
+            k.id === id ? { ...k, ...updates, updatedAt: new Date().toISOString() } : k
+          ),
+        }));
+      },
+
+      deleteKnowledgeItem: (id) => {
+        set((s) => ({ chatbotKnowledge: s.chatbotKnowledge.filter((k) => k.id !== id) }));
+      },
+
+      updateChatbotConfig: (updates) => {
+        set((s) => ({
+          chatbotConfig: s.chatbotConfig ? { ...s.chatbotConfig, ...updates } : null,
+        }));
+      },
+
+      getBarberQueue: () => {
+        const state = get();
+        const currentShop = state.currentShop || state.shops[0] || demoBarbershop;
+        const barbers = state.barbers.filter(b => b.shopId === currentShop.id && b.isActive);
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const todayAppts = state.appointments.filter(a => a.shopId === currentShop.id && a.date === todayStr);
+
+        return barbers.map(barber => {
+          const barberAppts = todayAppts.filter(a => a.barberId === barber.id);
+          const inProgress = barberAppts.find(a => a.status === 'in_progress');
+          const completed = barberAppts.filter(a => a.status === 'completed');
+          const totalEarned = completed.reduce((sum, a) => sum + (a.commissionAmount || Math.round(a.price * barber.commissionRate)), 0);
+
+          const client = inProgress ? state.clients.find(c => c.id === inProgress.clientId) : undefined;
+          const service = inProgress ? state.services.find(s => s.id === inProgress.serviceId) : undefined;
+
+          return {
+            barberId: barber.id,
+            barberName: barber.name,
+            avatarColor: barber.color || '#7C3AED',
+            status: barber.status || (inProgress ? 'busy' : 'available'),
+            statusUpdatedAt: barber.statusUpdatedAt || new Date().toISOString(),
+            currentAppointmentId: inProgress?.id,
+            currentClientName: client?.name,
+            currentServiceName: service?.name,
+            startedAt: inProgress?.startTime,
+            estimatedEndAt: inProgress?.endTime,
+            remainingMinutes: inProgress ? 25 : 0,
+            dailyServicesCount: completed.length,
+            dailyEarnings: totalEarned,
+          };
+        });
       },
 
       // ── Services ──────────────────────────────────────────────
